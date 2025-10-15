@@ -24,7 +24,7 @@ To run the sample with [Docker](https://www.docker.com/), make sure you have `do
 
 Rename the .env.example file to .env, change the environment variables, and register the URLs as explained [previously](#running-the-app).
 
-Run `sh exec.sh` to build and run the docker image in Linux or run `.\exec.ps1` to build
+Run `sh exec.sh` to build and run the docker image in Linux or run ` .\exec.ps1` to build
 and run the docker image on Windows.
 
 ## What is Auth0?
@@ -59,3 +59,39 @@ The [Responsible Disclosure Program](https://auth0.com/whitehat) details the pro
 ## License
 
 This project is licensed under the MIT license. See the [LICENSE](../LICENSE) file for more info.
+
+## Prisma (Python) Setup
+
+This project uses the Python Prisma client. Ensure `prisma` is installed (already listed in `requirements.txt`).
+
+1. Create your environment file:
+
+   - Copy `.env.example` to `.env` and adjust values as needed.
+
+2. Initialize the database and generate the client:
+
+   ```bash
+   # install prisma Python package if needed
+   pip install prisma
+
+   # apply schema to DB (uses DATABASE_URL from .env)
+   prisma db push
+
+   # generate Python client
+   prisma generate
+   ```
+
+3. Use the client in your code:
+
+   ```python
+   from prisma import Prisma
+
+   db = Prisma()
+   await db.connect()
+   # ... your queries ...
+   await db.disconnect()
+   ```
+
+Notes:
+- The schema is located in `prisma/schema.prisma`. Update `datasource` and `DATABASE_URL` as needed.
+- Default `DATABASE_URL` is `file:./dev.db` (SQLite). For Postgres, set `provider = "postgresql"` and `DATABASE_URL` accordingly.
