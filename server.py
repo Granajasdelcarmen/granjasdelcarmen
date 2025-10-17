@@ -192,6 +192,21 @@ def list_products():
     finally:
         db.close()
 
+@app.route("/rabbits")
+def list_rabbits():
+    db = SessionLocal()
+    try:
+        rabbits = db.query(Rabbit).all()
+        rabbits_dict = []
+        for rabbit in rabbits:
+            rabbits_dict.append({
+                "id": rabbit.id,
+                "name": rabbit.name,
+  
+            })
+        return jsonify(rabbits_dict)
+    finally:
+        db.close()
 
 @app.route("/products/seed")
 def seed_product():

@@ -2,11 +2,16 @@
 """
 
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Integer, Float, Boolean, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Integer, Float, Boolean, Text, ForeignKey, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+import enum
 
 Base = declarative_base()
+
+class Gender(enum.Enum):
+    MALE = "MALE"
+    FEMALE = "FEMALE"
 
 class User(Base):
     __tablename__ = 'users'
@@ -22,6 +27,7 @@ class User(Base):
     
     # Relationships
     orders = relationship("Order", back_populates="user")
+    rabbits = relationship("Rabbit", back_populates="user")
 
 class Product(Base):
     __tablename__ = 'products'
@@ -69,3 +75,18 @@ class OrderItem(Base):
     # Relationships
     order = relationship("Order", back_populates="order_items")
     product = relationship("Product", back_populates="order_items")
+
+class Rabbit(Base):
+    __tablename__ = 'rabbits'
+    
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    image = Column(String)
+    birth_date = Column(DateTime)
+    gender = Column(Enum(Gender))
+    user_id = Column(String, ForeignKey('users.id'))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="rabbits")
