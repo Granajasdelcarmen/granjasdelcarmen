@@ -10,9 +10,9 @@ from authlib.integrations.flask_client import OAuth
 from dotenv import find_dotenv, load_dotenv
 from flask import Flask, redirect, render_template, session, url_for, jsonify, request
 from flask_cors import CORS
-from sqlalchemy import create_engine, Column, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from models import Base, User, Product, Order, OrderItem
 
 ENV_FILE = find_dotenv()
 if ENV_FILE:
@@ -21,18 +21,6 @@ if ENV_FILE:
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 app.secret_key = env.get("APP_SECRET_KEY")
-
-# SQLAlchemy setup
-Base = declarative_base()
-
-class User(Base):
-    __tablename__ = 'users'
-    
-    id = Column(String, primary_key=True)
-    email = Column(String, unique=True, nullable=False)
-    name = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 # Database setup
 DATABASE_URL = env.get("DATABASE_URL", "sqlite:///./dev.db")
@@ -173,6 +161,64 @@ def seed_user():
             "email": new_user.email,
             "name": new_user.name,
             "createdAt": new_user.created_at.isoformat() if new_user.created_at else None
+        })
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
+# Product endpoints
+@app.route("/products")
+def list_products():
+    db = SessionLocal()
+    try:
+        products = db.query(Product).all()
+        products_dict = []
+        for product in products:
+            products_dict.append({
+                "id": product.id,
+                "name": product.name,
+                "description": product.description,
+                "price": product.price,
+                "stock": product.stock,
+                "category": product.category,
+                "image_url": product.image_url,
+                "is_active": product.is_active,
+                "created_at": product.created_at.isoformat() if product.created_at else None
+            })
+        return jsonify(products_dict)
+    finally:
+        db.close()
+
+
+@app.route("/products/seed")
+def seed_product():
+    db = SessionLocal()
+    try:
+        import uuid
+        new_product = Product(
+            id=str(uuid.uuid4()),
+            name="Huevos Frescos",
+            description="Huevos frescos de gallinas criadas en libertad",
+            price=15.50,
+            stock=100,
+            category="Huevos",
+            is_active=True
+        )
+        db.add(new_product)
+        db.commit()
+        db.refresh(new_product)
+        
+        return jsonify({
+            "id": new_product.id,
+            "name": new_product.name,
+            "description": new_product.description,
+            "price": new_product.price,
+            "stock": new_product.stock,
+            "category": new_product.category,
+            "created_at": new_product.created_at.isoformat() if new_product.created_at else None
         })
     except Exception as e:
         db.rollback()
