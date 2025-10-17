@@ -134,8 +134,7 @@ def list_users():
                 "id": user.id,
                 "email": user.email,
                 "name": user.name,
-                "createdAt": user.created_at.isoformat() if user.created_at else None,
-                "updatedAt": user.updated_at.isoformat() if user.updated_at else None
+
             })
         return jsonify(users_dict)
     finally:
