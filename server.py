@@ -1,16 +1,18 @@
-"""Python Flask WebApp Auth0 integration example
+"""Python Flask WebApp Auth0 integration example with SQLAlchemy
 """
 
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
+from datetime import datetime
 
 from authlib.integrations.flask_client import OAuth
-import asyncio
-from prisma import Prisma
 from dotenv import find_dotenv, load_dotenv
 from flask import Flask, redirect, render_template, session, url_for, jsonify, request
 from flask_cors import CORS
+from sqlalchemy import create_engine, Column, String, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 ENV_FILE = find_dotenv()
 if ENV_FILE:
@@ -20,31 +22,32 @@ app = Flask(__name__)
 CORS(app, supports_credentials=True)
 app.secret_key = env.get("APP_SECRET_KEY")
 
+# SQLAlchemy setup
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = 'users'
+    
+    id = Column(String, primary_key=True)
+    email = Column(String, unique=True, nullable=False)
+    name = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# Database setup
+DATABASE_URL = env.get("DATABASE_URL", "sqlite:///./dev.db")
+engine = create_engine(DATABASE_URL)
+Base.metadata.create_all(engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 oauth = OAuth(app)
-
-# Prisma Client (Python)
-db = Prisma()
-
-
-def run_async(coroutine):
-    """Run an async coroutine in a synchronous context."""
-    return asyncio.run(coroutine)
-
-
-@app.before_first_request
-def connect_prisma():
-    # Establish Prisma connection once at startup
-    run_async(db.connect())
-
-
-@app.teardown_appcontext
-def disconnect_prisma(exception):
-    # Gracefully close Prisma connection when the app context tears down
-    try:
-        run_async(db.disconnect())
-    except Exception:
-        pass
 
 oauth.register(
     "auth0",
@@ -130,32 +133,52 @@ def auth_logout_url():
 def auth_me():
     return jsonify(session.get("user"))
 
-# Prisma demo endpoints
+
+# Database endpoints with SQLAlchemy
 @app.route("/users")
 def list_users():
-    users = run_async(db.user.find_many())
-    # Convert Pydantic models to dicts for JSON serialization
-    users_dict = [u.dict() for u in users]
-    return app.response_class(
-        response=json.dumps(users_dict, default=str),
-        mimetype="application/json",
-    )
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        users_dict = []
+        for user in users:
+            users_dict.append({
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "createdAt": user.created_at.isoformat() if user.created_at else None,
+                "updatedAt": user.updated_at.isoformat() if user.updated_at else None
+            })
+        return jsonify(users_dict)
+    finally:
+        db.close()
 
 
 @app.route("/users/seed")
 def seed_user():
-    new_user = run_async(
-        db.user.create(
-            data={
-                "email": "test@example.com",
-                "name": "Test User",
-            }
+    db = SessionLocal()
+    try:
+        import uuid
+        new_user = User(
+            id=str(uuid.uuid4()),
+            email="test@example.com",
+            name="Test User"
         )
-    )
-    return app.response_class(
-        response=json.dumps(new_user.dict(), default=str),
-        mimetype="application/json",
-    )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        return jsonify({
+            "id": new_user.id,
+            "email": new_user.email,
+            "name": new_user.name,
+            "createdAt": new_user.created_at.isoformat() if new_user.created_at else None
+        })
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
