@@ -4,7 +4,7 @@
 import json
 from os import environ as env
 from urllib.parse import quote_plus, urlencode
-from datetime import datetime
+from datetime import datetime 
 
 from authlib.integrations.flask_client import OAuth
 from dotenv import find_dotenv, load_dotenv
@@ -12,7 +12,7 @@ from flask import Flask, redirect, render_template, session, url_for, jsonify, r
 from flask_cors import CORS
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base, User, Product, Order, OrderItem
+from models import Base, User, Product, Rabbit
 
 ENV_FILE = find_dotenv()
 if ENV_FILE:
@@ -191,7 +191,7 @@ def list_products():
     finally:
         db.close()
 
-@app.route("/rabbits")
+@app.route("/rabbits", methods=["GET"])
 def list_rabbits():
     db = SessionLocal()
     try:
@@ -201,9 +201,145 @@ def list_rabbits():
             rabbits_dict.append({
                 "id": rabbit.id,
                 "name": rabbit.name,
-  
+                "image": rabbit.image,
+                "birth_date": rabbit.birth_date.isoformat() if rabbit.birth_date else None,
+                "gender": rabbit.gender.value if rabbit.gender else None,
+                "user_id": rabbit.user_id,
+                "created_at": rabbit.created_at.isoformat() if rabbit.created_at else None,
+                "updated_at": rabbit.updated_at.isoformat() if rabbit.updated_at else None
             })
         return jsonify(rabbits_dict)
+    finally:
+        db.close()
+
+@app.route("/rabbits/add", methods=["POST"])
+def add_rabbit():
+    db = SessionLocal()
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        if not data.get("name"):
+            return jsonify({"error": "Name is required"}), 400
+        
+        # Validate gender if provided
+        if data.get("gender") and data["gender"] not in ["MALE", "FEMALE"]:
+            return jsonify({"error": "Gender must be MALE or FEMALE"}), 400
+        
+        import uuid
+        
+        # Parse birth_date if provided
+        birth_date = None
+        if data.get("birth_date"):
+            try:
+                birth_date = datetime.strptime(data["birth_date"], "%Y-%m-%d")
+            except ValueError:
+                return jsonify({"error": "Invalid birth_date format. Use YYYY-MM-DD"}), 400
+        
+        new_rabbit = Rabbit(
+            id=str(uuid.uuid4()),
+            name=data["name"],
+            image=data.get("image"),
+            birth_date=birth_date,
+            gender=data.get("gender"),
+            user_id=data.get("user_id")
+        )
+        
+        db.add(new_rabbit)
+        db.commit()
+        db.refresh(new_rabbit)
+        
+        return jsonify({
+            "id": new_rabbit.id,
+            "name": new_rabbit.name,
+            "image": new_rabbit.image,
+            "birth_date": new_rabbit.birth_date.isoformat() if new_rabbit.birth_date else None,
+            "gender": new_rabbit.gender.value if new_rabbit.gender else None,
+            "user_id": new_rabbit.user_id,
+            "created_at": new_rabbit.created_at.isoformat() if new_rabbit.created_at else None,
+            "updated_at": new_rabbit.updated_at.isoformat() if new_rabbit.updated_at else None
+        }), 201
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@app.route("/rabbits/<id>", methods=["PUT"])
+def update_rabbit(id):
+    """Update rabbit"""
+    db = SessionLocal()
+    try:
+        data = request.get_json()
+        rabbit = db.query(Rabbit).filter(Rabbit.id == id).first()
+        
+        if not rabbit:
+            return jsonify({"error": "Rabbit not found"}), 404
+        
+        # Update fields if provided
+        if "name" in data:
+            rabbit.name = data["name"]
+        if "image" in data:
+            rabbit.image = data["image"]
+        if "birth_date" in data:
+            if data["birth_date"]:
+                try:
+                    rabbit.birth_date = datetime.strptime(data["birth_date"], "%Y-%m-%d")
+                except ValueError:
+                    return jsonify({"error": "Invalid birth_date format. Use YYYY-MM-DD"}), 400
+            else:
+                rabbit.birth_date = None
+        if "gender" in data:
+            if data["gender"] and data["gender"] not in ["MALE", "FEMALE"]:
+                return jsonify({"error": "Gender must be MALE or FEMALE"}), 400
+            rabbit.gender = data["gender"]
+        if "user_id" in data:
+            rabbit.user_id = data["user_id"]
+        
+        rabbit.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(rabbit)
+        
+        return jsonify({
+            "id": rabbit.id,
+            "name": rabbit.name,
+            "image": rabbit.image,
+            "birth_date": rabbit.birth_date.isoformat() if rabbit.birth_date else None,
+            "gender": rabbit.gender.value if rabbit.gender else None,
+            "user_id": rabbit.user_id,
+            "created_at": rabbit.created_at.isoformat() if rabbit.created_at else None,
+            "updated_at": rabbit.updated_at.isoformat() if rabbit.updated_at else None
+        })
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+@app.route("/rabbits/<id>", methods=["DELETE"])
+def delete_rabbit(id):
+    """Delete rabbit"""
+    db = SessionLocal()
+    try:
+        rabbit = db.query(Rabbit).filter(Rabbit.id == id).first()
+        
+        if not rabbit:
+            return jsonify({"error": "Rabbit not found"}), 404
+        
+        db.delete(rabbit)
+        db.commit()
+        
+        return jsonify({"message": "Rabbit deleted successfully"})
+        
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
     finally:
         db.close()
 
