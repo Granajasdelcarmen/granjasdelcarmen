@@ -1,92 +1,79 @@
-"""Database models for Granjas del Carmen
-"""
+"""Database models for Granjas del Carmen"""
 
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, Float, Boolean, Text, ForeignKey, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 import enum
+import uuid
 
 Base = declarative_base()
 
+# ---------- ENUMS ----------
 class Gender(enum.Enum):
     MALE = "MALE"
     FEMALE = "FEMALE"
-
-class User(Base):
-    __tablename__ = 'users'
     
-    id = Column(String, primary_key=True)
+class Role(enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
+    VIEWER = "viewer"
+
+# ---------- MODELOS ----------
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String, unique=True, nullable=False)
     name = Column(String)
     phone = Column(String)
     address = Column(Text)
+    role = Column(Enum(Role), default="user")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    orders = relationship("Order", back_populates="user")
-    rabbits = relationship("Rabbit", back_populates="user")
 
-class Product(Base):
-    __tablename__ = 'products'
-    
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    description = Column(Text)
-    price = Column(Float, nullable=False)
-    stock = Column(Integer, default=0)
-    category = Column(String)
-    image_url = Column(String)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    order_items = relationship("OrderItem", back_populates="product")
+    # Relaciones
 
-class Order(Base):
-    __tablename__ = 'orders'
-    
-    id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey('users.id'), nullable=False)
-    total_amount = Column(Float, nullable=False)
-    status = Column(String, default='pending')  # pending, confirmed, shipped, delivered, cancelled
-    shipping_address = Column(Text)
-    notes = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    user = relationship("User", back_populates="orders")
-    order_items = relationship("OrderItem", back_populates="order")
 
-class OrderItem(Base):
-    __tablename__ = 'order_items'
-    
-    id = Column(String, primary_key=True)
-    order_id = Column(String, ForeignKey('orders.id'), nullable=False)
-    product_id = Column(String, ForeignKey('products.id'), nullable=False)
+class Inventory(Base):
+    __tablename__ = "inventory"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    item = Column(String, nullable=False)
     quantity = Column(Integer, nullable=False)
-    price = Column(Float, nullable=False)  # Price at time of order
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    order = relationship("Order", back_populates="order_items")
-    product = relationship("Product", back_populates="order_items")
-
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+   
+   
 class Rabbit(Base):
-    __tablename__ = 'rabbits'
-    
-    id = Column(String, primary_key=True)
+    __tablename__ = "rabbits"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     image = Column(String)
     birth_date = Column(DateTime)
     gender = Column(Enum(Gender))
-    user_id = Column(String, ForeignKey('users.id'))
+    discarded = Column(Boolean, default=False)
+    discarded_reason = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    user = relationship("User", back_populates="rabbits")
+
+    # Relaciones
+
+
+class RabbitSales(Base):
+    __tablename__ = "rabbit_sales"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    rabbit_id = Column(String, ForeignKey("rabbits.id"))
+    price = Column(Float, nullable=False)
+    height = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = Column(String, ForeignKey("users.id"))
+
+
+    # Relaciones
+    rabbit = relationship("Rabbit", back_populates="rabbit_sales")
+    user = relationship("User", back_populates="rabbit_sales")
+
+
