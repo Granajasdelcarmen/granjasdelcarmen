@@ -34,6 +34,7 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relaciones
+    rabbit_sales = relationship("RabbitSales", back_populates="user")
 
 
 class Inventory(Base):
@@ -59,6 +60,7 @@ class Rabbit(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relaciones
+    rabbit_sales = relationship("RabbitSales", back_populates="rabbit")
 
 
 class RabbitSales(Base):
