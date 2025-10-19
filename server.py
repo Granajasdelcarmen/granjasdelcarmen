@@ -12,7 +12,7 @@ from flask import Flask, redirect, render_template, session, url_for, jsonify, r
 from flask_cors import CORS
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base, User, Product, Rabbit
+from models import Base, User, Rabbit
 
 ENV_FILE = find_dotenv()
 if ENV_FILE:
