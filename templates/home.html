@@ -1,16 +1,161 @@
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Auth0 Example</title>
+    <title>Granjas del Carmen - API</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      h1 {
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .api-section {
+        background-color: #ecf0f1;
+        padding: 20px;
+        border-radius: 5px;
+        margin: 20px 0;
+      }
+      .api-link {
+        display: inline-block;
+        background-color: #3498db;
+        color: white;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        margin: 10px 5px;
+        transition: background-color 0.3s;
+      }
+      .api-link:hover {
+        background-color: #2980b9;
+      }
+      .api-link.docs {
+        background-color: #27ae60;
+      }
+      .api-link.docs:hover {
+        background-color: #229954;
+      }
+      .endpoints {
+        margin-top: 20px;
+      }
+      .endpoint {
+        background-color: #fff;
+        border: 1px solid #bdc3c7;
+        border-radius: 5px;
+        padding: 15px;
+        margin: 10px 0;
+      }
+      .method {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-weight: bold;
+        font-size: 12px;
+        margin-right: 10px;
+      }
+      .get { background-color: #2ecc71; color: white; }
+      .post { background-color: #3498db; color: white; }
+      .put { background-color: #f39c12; color: white; }
+      .delete { background-color: #e74c3c; color: white; }
+      .auth-section {
+        background-color: #e8f5e8;
+        border-left: 4px solid #27ae60;
+        padding: 15px;
+        margin: 20px 0;
+      }
+    </style>
   </head>
   <body>
-    {% if session %}
-        <h1>Welcome {{session.userinfo.name}}!</h1>
-        <p><a href="/logout">Logout</a></p>
-        <div><pre>{{pretty}}</pre></div>
-    {% else %}
-        <h1>Welcome Guest</h1>
-        <p><a href="/login">Login</a></p>
-    {% endif %}
-  </body>
+    <div class="container">
+      <h1>🐰 Granjas del Carmen API</h1>
+      
+      {% if session %}
+        <div class="auth-section">
+          <h2>Welcome {{session.userinfo.name}}!</h2>
+          <p><a href="/logout">Logout</a></p>
+        </div>
+      {% else %}
+        <div class="auth-section">
+          <h2>Welcome Guest</h2>
+          <p><a href="/login">Login</a></p>
+        </div>
+      {% endif %}
+
+      <div class="api-section">
+        <h2>📚 API Documentation</h2>
+        <p>Access the interactive API documentation to explore all available endpoints:</p>
+        <a href="/api/docs/" class="api-link docs">📖 View API Documentation</a>
+        <a href="/api/" class="api-link">🔗 API Root</a>
+      </div>
+
+      <div class="api-section">
+        <h2>🚀 Available Endpoints</h2>
+        <div class="endpoints">
+          
+          <h3>Authentication</h3>
+          <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/auth/login-url</strong> - Get Auth0 login URL
+          </div>
+          <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/auth/logout-url</strong> - Get Auth0 logout URL
+          </div>
+          <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/auth/me</strong> - Get current user info
+          </div>
+
+          <h3>Users</h3>
+          <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/users/</strong> - List all users
+          </div>
+          <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/users/seed</strong> - Create test user
+          </div>
+
+          <h3>Rabbits</h3>
+          <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/rabbits/</strong> - List all rabbits
+          </div>
+          <div class="endpoint">
+            <span class="method post">POST</span>
+            <strong>/api/rabbits/add</strong> - Add new rabbit
+          </div>
+          <div class="endpoint">
+            <span class="method put">PUT</span>
+            <strong>/api/rabbits/{id}</strong> - Update rabbit
+          </div>
+          <div class="endpoint">
+            <span class="method delete">DELETE</span>
+            <strong>/api/rabbits/{id}</strong> - Delete rabbit
+          </div>
+
+        </div>
+      </div>
+
+      {% if session %}
+        <div class="api-section">
+          <h2>👤 User Session Data</h2>
+          <div><pre>{{pretty}}</pre></div>
+        </div>
+      {% endif %}
+    </div>
+  </body>
 </html>
