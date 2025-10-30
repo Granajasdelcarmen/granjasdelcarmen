@@ -1,7 +1,7 @@
 """
 Rabbit service with business logic
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from app.repositories.rabbit_repository import RabbitRepository
 from app.utils.database import get_db_session
 from app.utils.validators import validate_required_fields, validate_enum_value, validate_date_format
@@ -14,9 +14,12 @@ class RabbitService:
     Rabbit service handling rabbit business logic
     """
     
-    def get_all_rabbits(self) -> tuple:
+    def get_all_rabbits(self, sort_by: Optional[Literal["asc", "desc"]] = None) -> tuple:
         """
-        Get all rabbits
+        Get all rabbits with optional sorting by birth date
+        
+        Args:
+            sort_by: Sort order - "asc" for ascending, "desc" for descending, None for no sorting
         
         Returns:
             Tuple of (response_data, status_code)
@@ -24,7 +27,11 @@ class RabbitService:
         try:
             with get_db_session() as db:
                 repo = RabbitRepository(Rabbit, db)
-                rabbits = repo.get_all()
+                
+                if sort_by:
+                    rabbits = repo.get_all_sorted(sort_by)
+                else:
+                    rabbits = repo.get_all()
                 
                 rabbits_data = []
                 for rabbit in rabbits:
@@ -37,10 +44,8 @@ class RabbitService:
     def get_rabbit_by_id(self, rabbit_id: str) -> tuple:
         """
         Get rabbit by ID
-        
         Args:
             rabbit_id: Rabbit ID
-            
         Returns:
             Tuple of (response_data, status_code)
         """
@@ -152,12 +157,13 @@ class RabbitService:
         except Exception as e:
             return error_response(str(e), 500)
     
-    def get_rabbits_by_gender(self, gender: str) -> tuple:
+    def get_rabbits_by_gender(self, gender: str, sort_by: Optional[Literal["asc", "desc"]] = None) -> tuple:
         """
-        Get rabbits by gender
+        Get rabbits by gender with optional sorting by birth date
         
         Args:
             gender: Rabbit gender (MALE or FEMALE)
+            sort_by: Sort order - "asc" for ascending, "desc" for descending, None for no sorting
             
         Returns:
             Tuple of (response_data, status_code)
@@ -167,7 +173,11 @@ class RabbitService:
             
             with get_db_session() as db:
                 repo = RabbitRepository(Rabbit, db)
-                rabbits = repo.get_by_gender(Gender(gender))
+                
+                if sort_by:
+                    rabbits = repo.get_by_gender_sorted(Gender(gender), sort_by)
+                else:
+                    rabbits = repo.get_by_gender(Gender(gender))
                 
                 rabbits_data = []
                 for rabbit in rabbits:

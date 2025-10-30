@@ -46,9 +46,14 @@ error_model = api.model('Error', {
 @rabbits_ns.route('/')
 class RabbitList(Resource):
     @rabbits_ns.doc('list_rabbits')
+    @rabbits_ns.param('sort', 'Sort order by birth date: asc (ascending) or desc (descending)')
     def get(self):
-        """Get list of all rabbits"""
-        response_data, status_code = rabbit_service.get_all_rabbits()
+        """Get list of all rabbits with optional sorting by birth date"""
+        sort_by = request.args.get('sort')
+        if sort_by and sort_by not in ['asc', 'desc']:
+            return {'error': 'Sort parameter must be "asc" or "desc"'}, 400
+        
+        response_data, status_code = rabbit_service.get_all_rabbits(sort_by)
         return response_data, status_code
 
 @rabbits_ns.route('/add')
@@ -86,7 +91,12 @@ class RabbitDetail(Resource):
 @rabbits_ns.route('/gender/<string:gender>')
 class RabbitByGender(Resource):
     @rabbits_ns.doc('get_rabbits_by_gender')
+    @rabbits_ns.param('sort', 'Sort order by birth date: asc (ascending) or desc (descending)')
     def get(self, gender):
-        """Get rabbits by gender"""
-        response_data, status_code = rabbit_service.get_rabbits_by_gender(gender)
+        """Get rabbits by gender with optional sorting by birth date"""
+        sort_by = request.args.get('sort')
+        if sort_by and sort_by not in ['asc', 'desc']:
+            return {'error': 'Sort parameter must be "asc" or "desc"'}, 400
+        
+        response_data, status_code = rabbit_service.get_rabbits_by_gender(gender, sort_by)
         return response_data, status_code

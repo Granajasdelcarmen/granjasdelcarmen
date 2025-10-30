@@ -1,8 +1,9 @@
 """
 Rabbit repository with specific rabbit operations
 """
-from typing import List, Optional
+from typing import List, Optional, Literal
 from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc
 from app.repositories.base import BaseRepository
 from models import Rabbit, Gender
 
@@ -72,3 +73,38 @@ class RabbitRepository(BaseRepository[Rabbit]):
         rabbit.discarded_reason = reason
         self.db.commit()
         return True
+    
+    def get_all_sorted(self, sort_by: Literal["asc", "desc"] = "asc") -> List[Rabbit]:
+        """
+        Get all rabbits sorted by birth date
+        
+        Args:
+            sort_by: Sort order - "asc" for ascending, "desc" for descending
+            
+        Returns:
+            List of rabbit instances sorted by birth date
+        """
+        query = self.db.query(Rabbit)
+        
+        if sort_by == "desc":
+            return query.order_by(desc(Rabbit.birth_date)).all()
+        else:
+            return query.order_by(asc(Rabbit.birth_date)).all()
+    
+    def get_by_gender_sorted(self, gender: Gender, sort_by: Literal["asc", "desc"] = "asc") -> List[Rabbit]:
+        """
+        Get rabbits by gender sorted by birth date
+        
+        Args:
+            gender: Rabbit gender
+            sort_by: Sort order - "asc" for ascending, "desc" for descending
+            
+        Returns:
+            List of rabbit instances with the specified gender sorted by birth date
+        """
+        query = self.db.query(Rabbit).filter(Rabbit.gender == gender)
+        
+        if sort_by == "desc":
+            return query.order_by(desc(Rabbit.birth_date)).all()
+        else:
+            return query.order_by(asc(Rabbit.birth_date)).all()
