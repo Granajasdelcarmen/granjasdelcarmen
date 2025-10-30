@@ -36,14 +36,23 @@ error_model = api.model('Error', {
 @users_ns.route('/')
 class UserList(Resource):
     @users_ns.doc('list_users')
-    @users_ns.marshal_list_with(user_model)
     def get(self):
         """Get list of all users"""
         response_data, status_code = user_service.get_all_users()
         return response_data, status_code
+    
+    @users_ns.doc('create_user')
+    @users_ns.expect(user_create_model)
+    def post(self):
+        """Create a new user"""
+        from flask import request
+        user_data = request.get_json() or {}
+        response_data, status_code = user_service.create_user(user_data)
+        return response_data, status_code
 
 @users_ns.route('/seed')
 class UserSeed(Resource):
+    print("UserSeed", Resource)
     @users_ns.doc('seed_user')
     @users_ns.marshal_with(user_model)
     @users_ns.marshal_with(error_model, code=400)

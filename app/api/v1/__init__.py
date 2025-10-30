@@ -33,4 +33,4 @@ api.add_namespace(rabbits_ns)
 api.add_namespace(inventory_ns)
 
 # Import controllers to register routes
-from app.api.v1 import auth_controller, user_controller, rabbit_controller
+from app.api.v1 import auth_controller, user_controller, rabbit_controller, inventory_controller, health_controller

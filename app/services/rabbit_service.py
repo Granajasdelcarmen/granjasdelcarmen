@@ -219,11 +219,11 @@ class RabbitService:
             'id': rabbit.id,
             'name': rabbit.name,
             'image': rabbit.image,
-            'birth_date': rabbit.birth_date,
+            'birth_date': rabbit.birth_date.isoformat() if rabbit.birth_date else None,
             'gender': rabbit.gender.value if rabbit.gender else None,
             'discarded': rabbit.discarded,
             'discarded_reason': rabbit.discarded_reason,
             'user_id': getattr(rabbit, 'user_id', None),
-            'created_at': rabbit.created_at,
-            'updated_at': rabbit.updated_at
+            'created_at': rabbit.created_at.isoformat() if rabbit.created_at else None,
+            'updated_at': rabbit.updated_at.isoformat() if rabbit.updated_at else None
         }

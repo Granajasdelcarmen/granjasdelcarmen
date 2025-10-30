@@ -46,7 +46,6 @@ error_model = api.model('Error', {
 @rabbits_ns.route('/')
 class RabbitList(Resource):
     @rabbits_ns.doc('list_rabbits')
-    @rabbits_ns.marshal_list_with(rabbit_model)
     def get(self):
         """Get list of all rabbits"""
         response_data, status_code = rabbit_service.get_all_rabbits()
@@ -56,9 +55,6 @@ class RabbitList(Resource):
 class RabbitAdd(Resource):
     @rabbits_ns.doc('add_rabbit')
     @rabbits_ns.expect(rabbit_create_model)
-    @rabbits_ns.marshal_with(rabbit_model, code=201)
-    @rabbits_ns.marshal_with(error_model, code=400)
-    @rabbits_ns.marshal_with(error_model, code=500)
     def post(self):
         """Add a new rabbit"""
         rabbit_data = request.get_json() or {}
@@ -68,9 +64,6 @@ class RabbitAdd(Resource):
 @rabbits_ns.route('/<string:rabbit_id>')
 class RabbitDetail(Resource):
     @rabbits_ns.doc('get_rabbit')
-    @rabbits_ns.marshal_with(rabbit_model)
-    @rabbits_ns.marshal_with(error_model, code=404)
-    @rabbits_ns.marshal_with(error_model, code=500)
     def get(self, rabbit_id):
         """Get rabbit by ID"""
         response_data, status_code = rabbit_service.get_rabbit_by_id(rabbit_id)
@@ -78,10 +71,6 @@ class RabbitDetail(Resource):
     
     @rabbits_ns.doc('update_rabbit')
     @rabbits_ns.expect(rabbit_update_model)
-    @rabbits_ns.marshal_with(rabbit_model)
-    @rabbits_ns.marshal_with(error_model, code=400)
-    @rabbits_ns.marshal_with(error_model, code=404)
-    @rabbits_ns.marshal_with(error_model, code=500)
     def put(self, rabbit_id):
         """Update rabbit by ID"""
         rabbit_data = request.get_json() or {}
@@ -89,11 +78,6 @@ class RabbitDetail(Resource):
         return response_data, status_code
     
     @rabbits_ns.doc('delete_rabbit')
-    @rabbits_ns.marshal_with(api.model('Success', {
-        'message': fields.String(description='Success message')
-    }))
-    @rabbits_ns.marshal_with(error_model, code=404)
-    @rabbits_ns.marshal_with(error_model, code=500)
     def delete(self, rabbit_id):
         """Delete rabbit by ID"""
         response_data, status_code = rabbit_service.delete_rabbit(rabbit_id)
@@ -102,9 +86,6 @@ class RabbitDetail(Resource):
 @rabbits_ns.route('/gender/<string:gender>')
 class RabbitByGender(Resource):
     @rabbits_ns.doc('get_rabbits_by_gender')
-    @rabbits_ns.marshal_list_with(rabbit_model)
-    @rabbits_ns.marshal_with(error_model, code=400)
-    @rabbits_ns.marshal_with(error_model, code=500)
     def get(self, gender):
         """Get rabbits by gender"""
         response_data, status_code = rabbit_service.get_rabbits_by_gender(gender)

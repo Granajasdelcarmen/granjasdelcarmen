@@ -2,6 +2,8 @@
 User service with business logic
 """
 from typing import List, Dict, Any, Optional
+
+from sqlalchemy import true
 from app.repositories.user_repository import UserRepository
 from app.utils.database import get_db_session
 from app.utils.validators import validate_required_fields, validate_enum_value
@@ -22,6 +24,7 @@ class UserService:
             Tuple of (response_data, status_code)
         """
         try:
+            print("get_all_users")
             with get_db_session() as db:
                 repo = UserRepository(User, db)
                 users = repo.get_all()
@@ -69,10 +72,17 @@ class UserService:
         try:
             # Validate required fields
             validate_required_fields(user_data, ['email'])
-            
-            # Validate role if provided
+            # Validate and convert role if provided
             if 'role' in user_data:
-                validate_enum_value(user_data['role'], ['admin', 'user', 'viewer'], 'role')
+                role_mapping = {
+                    'admin': 'ADMIN',
+                    'user': 'USER', 
+                    'viewer': 'VIEWER'
+                }
+                if user_data['role'] in role_mapping:
+                    user_data['role'] = role_mapping[user_data['role']]
+                else:
+                    validate_enum_value(user_data['role'], ['ADMIN', 'USER', 'VIEWER'], 'role')
             
             with get_db_session() as db:
                 repo = UserRepository(User, db)
@@ -104,9 +114,17 @@ class UserService:
             Tuple of (response_data, status_code)
         """
         try:
-            # Validate role if provided
+            # Validate and convert role if provided
             if 'role' in user_data:
-                validate_enum_value(user_data['role'], ['admin', 'user', 'viewer'], 'role')
+                role_mapping = {
+                    'admin': 'ADMIN',
+                    'user': 'USER', 
+                    'viewer': 'VIEWER'
+                }
+                if user_data['role'] in role_mapping:
+                    user_data['role'] = role_mapping[user_data['role']]
+                else:
+                    validate_enum_value(user_data['role'], ['ADMIN', 'USER', 'VIEWER'], 'role')
             
             with get_db_session() as db:
                 repo = UserRepository(User, db)
@@ -156,7 +174,10 @@ class UserService:
         test_user_data = {
             'email': 'test@example.com',
             'name': 'Test User',
-            'role': 'user'
+            'role': 'user',
+            'phone': '1234567890',
+            'address': '123 Main St, Anytown, USA',
+            'is_active': true,
         }
         return self.create_user(test_user_data)
     
@@ -178,6 +199,6 @@ class UserService:
             'address': user.address,
             'role': user.role.value if user.role else None,
             'is_active': user.is_active,
-            'created_at': user.created_at,
-            'updated_at': user.updated_at
+            'created_at': user.created_at.isoformat() if user.created_at else None,
+            'updated_at': user.updated_at.isoformat() if user.updated_at else None
         }

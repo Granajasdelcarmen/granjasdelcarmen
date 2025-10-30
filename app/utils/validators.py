@@ -70,3 +70,17 @@ def validate_enum_value(value: str, valid_values: list, field_name: str) -> None
     """
     if value and value not in valid_values:
         raise ValueError(f"{field_name} must be one of: {', '.join(valid_values)}")
+
+def validate_positive_integer(value: int, field_name: str) -> None:
+    """
+    Validate that value is a positive integer
+    
+    Args:
+        value: Value to validate
+        field_name: Name of the field for error message
+        
+    Raises:
+        ValueError: If value is not a positive integer
+    """
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{field_name} must be a positive integer")
