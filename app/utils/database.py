@@ -32,7 +32,9 @@ engine = create_engine(
     connect_args={
         "connect_timeout": 5,
         "application_name": "granjas-del-carmen-be",
-        "options": "-c statement_timeout=30000"
+        "options": "-c statement_timeout=30000",
+        # Ensure SSL for managed Postgres providers like Supabase
+        "sslmode": "require",
     }
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
