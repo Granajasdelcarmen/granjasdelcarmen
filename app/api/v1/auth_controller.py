@@ -29,7 +29,8 @@ auth_user_model = api.model('AuthUser', {
     'email': fields.String(description='User email'),
     'name': fields.String(description='User full name'),
     'picture': fields.String(description='User profile picture URL'),
-    'email_verified': fields.Boolean(description='Email verification status')
+    'email_verified': fields.Boolean(description='Email verification status'),
+    'role': fields.String(description='Application role (admin/user/viewer)')
 })
 
 @auth_ns.route('/login-url')

@@ -109,13 +109,33 @@ def register_main_routes(app):
         token = oauth_instance.auth0.authorize_access_token()
         # Guardar claims del usuario (estable y seguro usando /userinfo)
         userinfo = oauth_instance.auth0.userinfo(token=token)
-        session["user"] = {
-            "sub": userinfo.get("sub"),
-            "email": userinfo.get("email"),
-            "name": userinfo.get("name"),
-            "picture": userinfo.get("picture"),
-            "email_verified": userinfo.get("email_verified"),
-        }
+        # Enrich with app role from DB if available
+        try:
+            from app.services.user_service import UserService
+            service = UserService()
+            role = None
+            email = userinfo.get("email")
+            if email:
+                user_data, status_code = service.get_user_by_email(email)
+                if status_code == 200 and isinstance(user_data, dict):
+                    role = user_data.get("role")
+            session["user"] = {
+                "sub": userinfo.get("sub"),
+                "email": email,
+                "name": userinfo.get("name"),
+                "picture": userinfo.get("picture"),
+                "email_verified": userinfo.get("email_verified"),
+                "role": role or "user",
+            }
+        except Exception:
+            session["user"] = {
+                "sub": userinfo.get("sub"),
+                "email": userinfo.get("email"),
+                "name": userinfo.get("name"),
+                "picture": userinfo.get("picture"),
+                "email_verified": userinfo.get("email_verified"),
+                "role": "user",
+            }
         # Redirigir al FE para que éste haga /api/v1/auth/me
         # Determinar config actual de la app y obtener FRONTEND_URL
         app_config = settings_config[app.config.get('ENV', 'default')]

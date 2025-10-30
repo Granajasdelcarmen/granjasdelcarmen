@@ -26,7 +26,7 @@ rabbit_model = api.model('Rabbit', {
 rabbit_create_model = api.model('RabbitCreate', {
     'name': fields.String(required=True, description='Rabbit name'),
     'image': fields.String(description='Rabbit image URL'),
-    'birth_date': fields.String(description='Rabbit birth date (YYYY-MM-DD format)'),
+    'birth_date': fields.String(required=True, description='Rabbit birth date (YYYY-MM-DD format)'),
     'gender': fields.String(enum=['MALE', 'FEMALE'], description='Rabbit gender'),
     'user_id': fields.String(description='Owner user ID')
 })
@@ -63,6 +63,9 @@ class RabbitAdd(Resource):
     def post(self):
         """Add a new rabbit"""
         rabbit_data = request.get_json() or {}
+        # Basic validation: birth_date required
+        if not rabbit_data.get('birth_date'):
+            return {'error': 'birth_date is required (YYYY-MM-DD)'}, 400
         response_data, status_code = rabbit_service.create_rabbit(rabbit_data)
         return response_data, status_code
 

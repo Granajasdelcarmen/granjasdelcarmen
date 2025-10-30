@@ -58,6 +58,26 @@ class UserService:
                 return success_response(self._serialize_user(user))
         except Exception as e:
             return error_response(str(e), 500)
+
+    def get_user_by_email(self, email: str) -> tuple:
+        """
+        Get user by email
+        
+        Args:
+            email: User email
+        
+        Returns:
+            Tuple of (response_data, status_code)
+        """
+        try:
+            with get_db_session() as db:
+                repo = UserRepository(User, db)
+                user = repo.get_by_email(email)
+                if not user:
+                    return not_found_response("User")
+                return success_response(self._serialize_user(user))
+        except Exception as e:
+            return error_response(str(e), 500)
     
     def create_user(self, user_data: Dict[str, Any]) -> tuple:
         """
