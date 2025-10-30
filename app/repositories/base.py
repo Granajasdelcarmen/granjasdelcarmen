@@ -147,3 +147,9 @@ class BaseRepository(Generic[T]):
             True if exists, False otherwise
         """
         return self.db.query(self.model).filter(self.model.id == id).first() is not None
+
+    def query(self):
+        """
+        Return a base SQLAlchemy query for advanced filtering
+        """
+        return self.db.query(self.model)

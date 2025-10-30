@@ -25,12 +25,16 @@ auth_ns = Namespace('auth', description='Authentication endpoints')
 users_ns = Namespace('users', description='User management endpoints')
 rabbits_ns = Namespace('rabbits', description='Rabbit management endpoints')
 inventory_ns = Namespace('inventory', description='Inventory management endpoints')
+events_ns = Namespace('events', description='Event management endpoints')
+alerts_ns = Namespace('alerts', description='Alert management endpoints')
 
 # Add namespaces to API
 api.add_namespace(auth_ns)
 api.add_namespace(users_ns)
 api.add_namespace(rabbits_ns)
 api.add_namespace(inventory_ns)
+api.add_namespace(events_ns)
+api.add_namespace(alerts_ns)
 
 # Import controllers to register routes
-from app.api.v1 import auth_controller, user_controller, rabbit_controller, inventory_controller, health_controller
+from app.api.v1 import auth_controller, user_controller, rabbit_controller, inventory_controller, health_controller, event_controller, alert_controller
