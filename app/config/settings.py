@@ -30,10 +30,14 @@ class Config:
     
     # CORS Configuration
     CORS_SUPPORTS_CREDENTIALS = True
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3001")
 
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
+    # OAuth redirections work with top-level GET; Lax is adequate in dev
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SECURE = False
 
 class ProductionConfig(Config):
     """Production configuration"""

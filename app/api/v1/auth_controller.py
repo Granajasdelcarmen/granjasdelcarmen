@@ -37,11 +37,10 @@ class AuthLoginUrl(Resource):
     @auth_ns.doc('get_login_url')
     @auth_ns.marshal_with(login_url_model)
     def get(self):
-        """Get Auth0 login URL for frontend redirection"""
-        redirect_uri = url_for("callback", _external=True)
-        client = oauth.create_client("auth0")
-        uri = client.create_authorization_url(redirect_uri=redirect_uri)[0]
-        return {"loginUrl": uri}
+        """Get backend /login absolute URL for redirection"""
+        # We redirect via backend /login which handles Auth0 flow
+        login_absolute = url_for("login", _external=True)
+        return {"loginUrl": login_absolute}
 
 @auth_ns.route('/logout-url')
 class AuthLogoutUrl(Resource):
@@ -56,7 +55,7 @@ class AuthLogoutUrl(Resource):
                 + "/v2/logout?"
                 + urlencode(
                     {
-                        "returnTo": url_for("home", _external=True),
+                        "returnTo": Config.FRONTEND_URL,
                         "client_id": Config.AUTH0_CLIENT_ID,
                     },
                     quote_via=quote_plus,

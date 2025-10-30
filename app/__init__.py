@@ -24,20 +24,37 @@ def create_app(config_name='default'):
     # Load configuration
     app.config.from_object(config[config_name])
     
-    # Initialize CORS
-    CORS(app, supports_credentials=app.config['CORS_SUPPORTS_CREDENTIALS'])
-    
-    # Initialize OAuth
-    oauth = OAuth(app)
-    oauth.register(
-        "auth0",
-        client_id=app.config['AUTH0_CLIENT_ID'],
-        client_secret=app.config['AUTH0_CLIENT_SECRET'],
-        client_kwargs={
-            "scope": "openid profile email",
-        },
-        server_metadata_url=f'https://{app.config["AUTH0_DOMAIN"]}/.well-known/openid-configuration',
+    # Cookies de sesión seguras si usas dominios distintos/https:
+    # app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    # app.config['SESSION_COOKIE_SECURE'] = True
+
+    # Initialize CORS con origen explícito del frontend y credenciales
+    CORS(
+        app,
+        supports_credentials=True,
+        resources={r"/*": {"origins": app.config['FRONTEND_URL']}}
     )
+    
+    # Feature flag: enable auth only if all Auth0 vars are provided
+    app.config['AUTH_ENABLED'] = bool(
+        app.config.get('AUTH0_DOMAIN')
+        and app.config.get('AUTH0_CLIENT_ID')
+        and app.config.get('AUTH0_CLIENT_SECRET')
+    )
+
+    # Initialize OAuth if enabled
+    oauth = None
+    if app.config['AUTH_ENABLED']:
+        oauth = OAuth(app)
+        oauth.register(
+            "auth0",
+            client_id=app.config['AUTH0_CLIENT_ID'],
+            client_secret=app.config['AUTH0_CLIENT_SECRET'],
+            client_kwargs={
+                "scope": "openid profile email",
+            },
+            server_metadata_url=f'https://{app.config["AUTH0_DOMAIN"]}/.well-known/openid-configuration',
+        )
     
     # Create database tables
     Base.metadata.create_all(engine)
@@ -60,6 +77,7 @@ def register_main_routes(app):
     from flask import render_template, session, redirect, url_for, jsonify
     from urllib.parse import quote_plus, urlencode
     import json
+    from app.config.settings import config as settings_config
     
     # Store oauth instance for use in routes
     oauth_instance = None
@@ -75,6 +93,8 @@ def register_main_routes(app):
     @app.route("/callback", methods=["GET", "POST"])
     def callback():
         nonlocal oauth_instance
+        if not app.config.get('AUTH_ENABLED'):
+            return jsonify({'error': 'Auth is disabled in this environment'}), 400
         if not oauth_instance:
             oauth_instance = OAuth(app)
             oauth_instance.register(
@@ -87,12 +107,26 @@ def register_main_routes(app):
                 server_metadata_url=f'https://{app.config["AUTH0_DOMAIN"]}/.well-known/openid-configuration',
             )
         token = oauth_instance.auth0.authorize_access_token()
-        session["user"] = token
-        return redirect("/")
+        # Guardar claims del usuario (estable y seguro usando /userinfo)
+        userinfo = oauth_instance.auth0.userinfo(token=token)
+        session["user"] = {
+            "sub": userinfo.get("sub"),
+            "email": userinfo.get("email"),
+            "name": userinfo.get("name"),
+            "picture": userinfo.get("picture"),
+            "email_verified": userinfo.get("email_verified"),
+        }
+        # Redirigir al FE para que éste haga /api/v1/auth/me
+        # Determinar config actual de la app y obtener FRONTEND_URL
+        app_config = settings_config[app.config.get('ENV', 'default')]
+        return redirect(f"{app_config.FRONTEND_URL}/auth/callback")
     
     @app.route("/login")
     def login():
         nonlocal oauth_instance
+        if not app.config.get('AUTH_ENABLED'):
+            # In dev without Auth0, simulate login by redirecting to /dev/login
+            return redirect(url_for('dev_login'))
         if not oauth_instance:
             oauth_instance = OAuth(app)
             oauth_instance.register(
@@ -111,15 +145,35 @@ def register_main_routes(app):
     @app.route("/logout")
     def logout():
         session.clear()
+        # Determinar config actual de la app y obtener FRONTEND_URL
+        app_config = settings_config[app.config.get('ENV', 'default')]
+        if not app.config.get('AUTH_ENABLED'):
+            # Simplemente redirigir al FE si no hay Auth0
+            return redirect(app_config.FRONTEND_URL)
         return redirect(
             "https://"
             + app.config['AUTH0_DOMAIN']
             + "/v2/logout?"
             + urlencode(
                 {
-                    "returnTo": url_for("home", _external=True),
+                    "returnTo": app_config.FRONTEND_URL,
                     "client_id": app.config['AUTH0_CLIENT_ID'],
                 },
                 quote_via=quote_plus,
             )
         )
+
+    # Dev helpers when Auth is disabled
+    @app.route("/dev/login")
+    def dev_login():
+        if app.config.get('AUTH_ENABLED'):
+            return redirect(url_for('login'))
+        session["user"] = {
+            "sub": "dev|user",
+            "email": "dev.user@example.com",
+            "name": "Dev User",
+            "picture": "",
+            "email_verified": True,
+        }
+        app_config = settings_config[app.config.get('ENV', 'default')]
+        return redirect(f"{app_config.FRONTEND_URL}/auth/callback")

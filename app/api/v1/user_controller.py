@@ -50,17 +50,7 @@ class UserList(Resource):
         response_data, status_code = user_service.create_user(user_data)
         return response_data, status_code
 
-@users_ns.route('/seed')
-class UserSeed(Resource):
-    print("UserSeed", Resource)
-    @users_ns.doc('seed_user')
-    @users_ns.marshal_with(user_model)
-    @users_ns.marshal_with(error_model, code=400)
-    @users_ns.marshal_with(error_model, code=500)
-    def get(self):
-        """Create a test user for development purposes"""
-        response_data, status_code = user_service.seed_test_user()
-        return response_data, status_code
+## Seed endpoint removed: we will work only with real data moving forward
 
 @users_ns.route('/<string:user_id>')
 class UserDetail(Resource):
