@@ -70,4 +70,36 @@ class AuthMe(Resource):
     @auth_ns.marshal_with(auth_user_model)
     def get(self):
         """Get current authenticated user information"""
-        return session.get("user")
+        # Get user from session first
+        session_user = session.get("user")
+        if not session_user or not session_user.get("sub"):
+            return None
+        
+        # Get fresh user data from database to ensure role is up-to-date
+        try:
+            from app.services.user_service import UserService
+            service = UserService()
+            
+            response_data, status_code = service.get_user_by_id(session_user.get("sub"))
+            
+            if status_code == 200:
+                # Response format: {"message": "...", "data": {...}}
+                # Extract user data from response
+                user_data = response_data.get("data") if isinstance(response_data, dict) else response_data
+                
+                if isinstance(user_data, dict):
+                    # Update session with fresh role from database
+                    session_user["role"] = user_data.get("role", "user")
+                    session["user"] = session_user
+                    return session_user
+                else:
+                    # Invalid response format, return session user
+                    return session_user
+            else:
+                # User not found in DB, return session user with default role
+                return session_user
+        except Exception as e:
+            # Fallback to session user if DB query fails
+            import logging
+            logging.error(f"Error getting user from DB: {e}")
+            return session_user

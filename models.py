@@ -1,3 +1,4 @@
+
 """Database models for Granjas del Carmen"""
 
 from datetime import datetime
@@ -18,6 +19,7 @@ class Role(enum.Enum):
     ADMIN = "admin"
     USER = "user"
     VIEWER = "viewer"
+    TRABAJADOR = "trabajador"  # Persona que trabaja en la finca
 
 # New enums for Events/Alerts
 class AnimalType(enum.Enum):
@@ -86,7 +88,7 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relaciones
-    rabbit_sales = relationship("RabbitSales", back_populates="user")
+    animal_sales = relationship("AnimalSale", back_populates="user")
 
 
 class Inventory(Base):
@@ -96,39 +98,6 @@ class Inventory(Base):
     quantity = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-   
-   
-class Rabbit(Base):
-    __tablename__ = "rabbits"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String, nullable=False)
-    image = Column(String)
-    birth_date = Column(DateTime)
-    gender = Column(Enum(Gender))
-    discarded = Column(Boolean, default=False)
-    discarded_reason = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relaciones
-    rabbit_sales = relationship("RabbitSales", back_populates="rabbit")
-
-
-class RabbitSales(Base):
-    __tablename__ = "rabbit_sales"
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    rabbit_id = Column(String, ForeignKey("rabbits.id"))
-    price = Column(Float, nullable=False)
-    height = Column(Float, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    updated_by = Column(String, ForeignKey("users.id"))
-
-
-    # Relaciones
-    rabbit = relationship("Rabbit", back_populates="rabbit_sales")
-    user = relationship("User", back_populates="rabbit_sales")
 
 
 
@@ -185,20 +154,69 @@ class Alert(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-# Unified animals and corrals for grouping and filtering
+# ---------- UNIFIED ANIMAL MODEL ----------
+# Tabla única para todos los animales (conejos, vacas, ovejas, gallinas, etc.)
 class Animal(Base):
     __tablename__ = "animals"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
-    species = Column(Enum(AnimalType), nullable=False)
-    sex = Column(Enum(Gender), nullable=True)
+    species = Column(Enum(AnimalType), nullable=False)  # RABBIT, COW, SHEEP, CHICKEN, etc.
+    image = Column(String, nullable=True)
     birth_date = Column(DateTime, nullable=True)
+    gender = Column(Enum(Gender), nullable=True)  # MALE, FEMALE
+    
+    # Estado de descarte/venta
+    # discarded = True significa que el animal fue vendido o descartado
+    # discarded_reason contiene la razón (ej: "Vendido", "Sacrificado", etc.)
+    discarded = Column(Boolean, default=False)
+    discarded_reason = Column(Text, nullable=True)
+    
+    # Propietario/Responsable
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    
+    # Corral (opcional, para agrupación)
     corral_id = Column(String, ForeignKey("corrals.id"), nullable=True)
+    
+    # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Relaciones
+    animal_sales = relationship("AnimalSale", back_populates="animal")
+    owner = relationship("User", foreign_keys=[user_id])
 
+
+# ---------- ANIMAL SALES ----------
+# Tabla genérica para ventas de cualquier tipo de animal
+class AnimalSale(Base):
+    __tablename__ = "animal_sales"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    animal_id = Column(String, ForeignKey("animals.id"), nullable=False)
+    animal_type = Column(Enum(AnimalType), nullable=False)  # Para facilitar consultas/filtros
+    
+    # Información de venta
+    price = Column(Float, nullable=False)
+    weight = Column(Float, nullable=True)  # Peso al momento de la venta (opcional)
+    height = Column(Float, nullable=True)  # Altura (para conejos, etc.)
+    
+    # Información adicional
+    notes = Column(Text, nullable=True)  # Notas adicionales sobre la venta
+    
+    # Usuario que registró la venta (debe existir en users table con id = Auth0 sub)
+    sold_by = Column(String, ForeignKey("users.id"), nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relaciones
+    animal = relationship("Animal", back_populates="animal_sales")
+    user = relationship("User", foreign_keys=[sold_by], back_populates="animal_sales")
+
+
+# ---------- CORRALS ----------
 class Corral(Base):
     __tablename__ = "corrals"
 

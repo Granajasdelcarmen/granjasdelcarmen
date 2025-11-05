@@ -26,7 +26,11 @@ user_create_model = api.model('UserCreate', {
     'name': fields.String(description='User full name'),
     'phone': fields.String(description='User phone number'),
     'address': fields.String(description='User address'),
-    'role': fields.String(enum=['admin', 'user', 'viewer'], default='user', description='User role')
+    'role': fields.String(enum=['admin', 'user', 'viewer', 'trabajador'], default='user', description='User role')
+})
+
+user_role_update_model = api.model('UserRoleUpdate', {
+    'role': fields.String(required=True, enum=['admin', 'user', 'viewer', 'trabajador'], description='New user role')
 })
 
 error_model = api.model('Error', {
@@ -85,4 +89,24 @@ class UserDetail(Resource):
     def delete(self, user_id):
         """Delete user by ID"""
         response_data, status_code = user_service.delete_user(user_id)
+        return response_data, status_code
+
+@users_ns.route('/<string:user_id>/role')
+class UserRoleUpdate(Resource):
+    @users_ns.doc('update_user_role')
+    @users_ns.expect(user_role_update_model)
+    @users_ns.marshal_with(user_model)
+    @users_ns.marshal_with(error_model, code=400)
+    @users_ns.marshal_with(error_model, code=404)
+    @users_ns.marshal_with(error_model, code=500)
+    def put(self, user_id):
+        """Update user role (admin only)"""
+        from flask import request
+        data = request.get_json() or {}
+        role = data.get('role')
+        
+        if not role:
+            return {'error': 'role is required'}, 400
+        
+        response_data, status_code = user_service.update_user_role(user_id, role)
         return response_data, status_code

@@ -24,15 +24,26 @@ def create_app(config_name='default'):
     # Load configuration
     app.config.from_object(config[config_name])
     
+    # Disable strict slashes to avoid 308 redirects
+    app.url_map.strict_slashes = False
+    
     # Cookies de sesión seguras si usas dominios distintos/https:
     # app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     # app.config['SESSION_COOKIE_SECURE'] = True
 
     # Initialize CORS con origen explícito del frontend y credenciales
+    # Allow all methods including OPTIONS for preflight requests
     CORS(
         app,
         supports_credentials=True,
-        resources={r"/*": {"origins": app.config['FRONTEND_URL']}}
+        resources={
+            r"/api/*": {
+                "origins": app.config['FRONTEND_URL'],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+                "allow_headers": ["Content-Type", "Authorization", "X-User-ID"],
+                "expose_headers": ["Content-Type"]
+            }
+        }
     )
     
     # Feature flag: enable auth only if all Auth0 vars are provided
@@ -106,28 +117,55 @@ def register_main_routes(app):
                 },
                 server_metadata_url=f'https://{app.config["AUTH0_DOMAIN"]}/.well-known/openid-configuration',
             )
-        token = oauth_instance.auth0.authorize_access_token()
         # Guardar claims del usuario (estable y seguro usando /userinfo)
+        token = oauth_instance.auth0.authorize_access_token()
         userinfo = oauth_instance.auth0.userinfo(token=token)
-        # Enrich with app role from DB if available
+        
+        # Create or get user in database (using Auth0 sub as ID)
         try:
             from app.services.user_service import UserService
             service = UserService()
-            role = None
+            
+            auth0_sub = userinfo.get("sub")
             email = userinfo.get("email")
-            if email:
-                user_data, status_code = service.get_user_by_email(email)
-                if status_code == 200 and isinstance(user_data, dict):
-                    role = user_data.get("role")
+            name = userinfo.get("name")
+            picture = userinfo.get("picture")
+            
+            if not email:
+                return jsonify({'error': 'Email is required from Auth0'}), 400
+            
+            # Get or create user in database
+            response_data, status_code = service.get_or_create_user_by_auth0_sub(
+                auth0_sub=auth0_sub,
+                email=email,
+                name=name,
+                picture=picture
+            )
+            
+            if status_code == 200 or status_code == 201:
+                # Response format: {"message": "...", "data": {...}}
+                # Extract user data from response
+                user_data = response_data.get("data") if isinstance(response_data, dict) else response_data
+                
+                # Get role from DB user data
+                if isinstance(user_data, dict):
+                    role = user_data.get("role", "user")
+                else:
+                    role = "user"
+            else:
+                # Error creating user, use default role
+                role = "user"
+            
             session["user"] = {
-                "sub": userinfo.get("sub"),
+                "sub": auth0_sub,
                 "email": email,
-                "name": userinfo.get("name"),
-                "picture": userinfo.get("picture"),
+                "name": name,
+                "picture": picture,
                 "email_verified": userinfo.get("email_verified"),
-                "role": role or "user",
+                "role": role,
             }
-        except Exception:
+        except Exception as e:
+            # Fallback if user creation fails
             session["user"] = {
                 "sub": userinfo.get("sub"),
                 "email": userinfo.get("email"),

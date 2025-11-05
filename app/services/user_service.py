@@ -79,6 +79,106 @@ class UserService:
         except Exception as e:
             return error_response(str(e), 500)
     
+    def get_or_create_user_by_auth0_sub(
+        self, 
+        auth0_sub: str, 
+        email: str, 
+        name: str = None,
+        picture: str = None
+    ) -> tuple:
+        """
+        Get or create user by Auth0 sub ID (used in Auth0 callback)
+        If user doesn't exist, creates it with default role 'user'
+        
+        Args:
+            auth0_sub: Auth0 sub ID (will be used as user.id)
+            email: User email
+            name: User name (optional)
+            picture: User picture URL (optional)
+        
+        Returns:
+            Tuple of (response_data, status_code)
+        """
+        try:
+            with get_db_session() as db:
+                repo = UserRepository(User, db)
+                
+                # Try to get user by ID (Auth0 sub)
+                user = repo.get_by_id(auth0_sub)
+                
+                if user:
+                    # User exists, return it
+                    return success_response(self._serialize_user(user))
+                
+                # User doesn't exist, create it
+                # Check if email already exists (shouldn't happen, but just in case)
+                existing_user = repo.get_by_email(email)
+                if existing_user:
+                    # Email exists but ID is different - update ID to match Auth0 sub
+                    # This handles edge cases where user was created manually
+                    existing_user.id = auth0_sub
+                    db.commit()
+                    db.refresh(existing_user)
+                    return success_response(self._serialize_user(existing_user))
+                
+                # Create new user with Auth0 sub as ID
+                user_data = {
+                    'id': auth0_sub,  # Use Auth0 sub as ID
+                    'email': email,
+                    'name': name,
+                    'role': Role.USER,  # Default role, admin can change it later (user, trabajador, viewer, admin)
+                    'is_active': True
+                }
+                
+                user = repo.create(**user_data)
+                
+                return success_response(self._serialize_user(user), "User created successfully", 201)
+        except Exception as e:
+            return error_response(str(e), 500)
+    
+    def update_user_role(self, user_id: str, role: str) -> tuple:
+        """
+        Update user role (admin only)
+        
+        Args:
+            user_id: User ID
+            role: New role (admin, user, viewer)
+            
+        Returns:
+            Tuple of (response_data, status_code)
+        """
+        try:
+            # Validate role
+            role_mapping = {
+                'admin': 'ADMIN',
+                'user': 'USER',
+                'viewer': 'VIEWER',
+                'trabajador': 'TRABAJADOR'
+            }
+            if role.lower() in role_mapping:
+                role = role_mapping[role.lower()]
+            else:
+                validate_enum_value(role, ['ADMIN', 'USER', 'VIEWER', 'TRABAJADOR'], 'role')
+            
+            with get_db_session() as db:
+                repo = UserRepository(User, db)
+                
+                # Check if user exists
+                user = repo.get_by_id(user_id)
+                if not user:
+                    return not_found_response("User")
+                
+                # Update role
+                user.role = Role(role)
+                db.commit()
+                db.refresh(user)
+                
+                return success_response(self._serialize_user(user), "User role updated successfully")
+        except ValueError as e:
+            return error_response(str(e), 400)
+        except Exception as e:
+            return error_response(str(e), 500)
+    
     def create_user(self, user_data: Dict[str, Any]) -> tuple:
         """
         Create a new user
@@ -97,23 +197,27 @@ class UserService:
                 role_mapping = {
                     'admin': 'ADMIN',
                     'user': 'USER', 
-                    'viewer': 'VIEWER'
+                    'viewer': 'VIEWER',
+                    'trabajador': 'TRABAJADOR'
                 }
                 if user_data['role'] in role_mapping:
                     user_data['role'] = role_mapping[user_data['role']]
                 else:
-                    validate_enum_value(user_data['role'], ['ADMIN', 'USER', 'VIEWER'], 'role')
+                    validate_enum_value(user_data['role'], ['ADMIN', 'USER', 'VIEWER', 'TRABAJADOR'], 'role')
             
             with get_db_session() as db:
                 repo = UserRepository(User, db)
                 
-                # Check if user already exists
+                # Check if user already exists by email
                 existing_user = repo.get_by_email(user_data['email'])
                 if existing_user:
                     return error_response("User with this email already exists", 409)
                 
+                # Check if ID is provided (for Auth0 sub), otherwise generate UUID
+                if 'id' not in user_data:
+                    user_data['id'] = str(uuid.uuid4())
+                
                 # Create user
-                user_data['id'] = str(uuid.uuid4())
                 user = repo.create(**user_data)
                 
                 return success_response(self._serialize_user(user), "User created successfully", 201)
@@ -139,12 +243,13 @@ class UserService:
                 role_mapping = {
                     'admin': 'ADMIN',
                     'user': 'USER', 
-                    'viewer': 'VIEWER'
+                    'viewer': 'VIEWER',
+                    'trabajador': 'TRABAJADOR'
                 }
                 if user_data['role'] in role_mapping:
                     user_data['role'] = role_mapping[user_data['role']]
                 else:
-                    validate_enum_value(user_data['role'], ['ADMIN', 'USER', 'VIEWER'], 'role')
+                    validate_enum_value(user_data['role'], ['ADMIN', 'USER', 'VIEWER', 'TRABAJADOR'], 'role')
             
             with get_db_session() as db:
                 repo = UserRepository(User, db)

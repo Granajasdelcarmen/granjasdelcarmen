@@ -6,7 +6,7 @@ from app.repositories.rabbit_repository import RabbitRepository
 from app.utils.database import get_db_session
 from app.utils.validators import validate_required_fields, validate_enum_value, validate_date_format
 from app.utils.response import success_response, error_response, not_found_response
-from models import Rabbit, Gender
+from models import Animal, Gender, AnimalType
 import uuid
 
 class RabbitService:
@@ -14,24 +14,25 @@ class RabbitService:
     Rabbit service handling rabbit business logic
     """
     
-    def get_all_rabbits(self, sort_by: Optional[Literal["asc", "desc"]] = None) -> tuple:
+    def get_all_rabbits(self, sort_by: Optional[Literal["asc", "desc"]] = None, discarded: Optional[bool] = False) -> tuple:
         """
-        Get all rabbits with optional sorting by birth date
+        Get all rabbits with optional sorting by birth date and discarded filter
         
         Args:
             sort_by: Sort order - "asc" for ascending, "desc" for descending, None for no sorting
+            discarded: Filter by discarded status (False = active only, True = discarded only, None = all)
         
         Returns:
             Tuple of (response_data, status_code)
         """
         try:
             with get_db_session() as db:
-                repo = RabbitRepository(Rabbit, db)
+                repo = RabbitRepository(Animal, db)
                 
                 if sort_by:
-                    rabbits = repo.get_all_sorted(sort_by)
+                    rabbits = repo.get_all_sorted(sort_by, discarded)
                 else:
-                    rabbits = repo.get_all()
+                    rabbits = repo.get_all(discarded=discarded)
                 
                 rabbits_data = []
                 for rabbit in rabbits:
@@ -51,10 +52,10 @@ class RabbitService:
         """
         try:
             with get_db_session() as db:
-                repo = RabbitRepository(Rabbit, db)
+                repo = RabbitRepository(Animal, db)
                 rabbit = repo.get_by_id(rabbit_id)
                 
-                if not rabbit:
+                if not rabbit or rabbit.species != AnimalType.RABBIT:
                     return not_found_response("Rabbit")
                 
                 return success_response(self._serialize_rabbit(rabbit))
@@ -84,10 +85,11 @@ class RabbitService:
                 rabbit_data['birth_date'] = validate_date_format(rabbit_data['birth_date'])
             
             with get_db_session() as db:
-                repo = RabbitRepository(Rabbit, db)
+                repo = RabbitRepository(Animal, db)
                 
-                # Create rabbit
+                # Create rabbit - ensure species is set to RABBIT
                 rabbit_data['id'] = str(uuid.uuid4())
+                rabbit_data['species'] = AnimalType.RABBIT
                 rabbit = repo.create(**rabbit_data)
                 
                 return success_response(self._serialize_rabbit(rabbit), "Rabbit created successfully", 201)
@@ -120,11 +122,16 @@ class RabbitService:
                     rabbit_data['birth_date'] = None
             
             with get_db_session() as db:
-                repo = RabbitRepository(Rabbit, db)
+                repo = RabbitRepository(Animal, db)
                 
-                # Check if rabbit exists
-                if not repo.exists(rabbit_id):
+                # Check if rabbit exists and is of correct species
+                rabbit = repo.get_by_id(rabbit_id)
+                if not rabbit or rabbit.species != AnimalType.RABBIT:
                     return not_found_response("Rabbit")
+                
+                # Prevent species change
+                if 'species' in rabbit_data:
+                    rabbit_data.pop('species')
                 
                 # Update rabbit
                 updated_rabbit = repo.update(rabbit_id, **rabbit_data)
@@ -147,9 +154,11 @@ class RabbitService:
         """
         try:
             with get_db_session() as db:
-                repo = RabbitRepository(Rabbit, db)
+                repo = RabbitRepository(Animal, db)
                 
-                if not repo.exists(rabbit_id):
+                # Check if rabbit exists and is of correct species
+                rabbit = repo.get_by_id(rabbit_id)
+                if not rabbit or rabbit.species != AnimalType.RABBIT:
                     return not_found_response("Rabbit")
                 
                 repo.delete(rabbit_id)
@@ -157,13 +166,14 @@ class RabbitService:
         except Exception as e:
             return error_response(str(e), 500)
     
-    def get_rabbits_by_gender(self, gender: str, sort_by: Optional[Literal["asc", "desc"]] = None) -> tuple:
+    def get_rabbits_by_gender(self, gender: str, sort_by: Optional[Literal["asc", "desc"]] = None, discarded: Optional[bool] = False) -> tuple:
         """
-        Get rabbits by gender with optional sorting by birth date
+        Get rabbits by gender with optional sorting by birth date and discarded filter
         
         Args:
             gender: Rabbit gender (MALE or FEMALE)
             sort_by: Sort order - "asc" for ascending, "desc" for descending, None for no sorting
+            discarded: Filter by discarded status (False = active only, True = discarded only, None = all)
             
         Returns:
             Tuple of (response_data, status_code)
@@ -172,12 +182,12 @@ class RabbitService:
             validate_enum_value(gender, ['MALE', 'FEMALE'], 'gender')
             
             with get_db_session() as db:
-                repo = RabbitRepository(Rabbit, db)
+                repo = RabbitRepository(Animal, db)
                 
                 if sort_by:
-                    rabbits = repo.get_by_gender_sorted(Gender(gender), sort_by)
+                    rabbits = repo.get_by_gender_sorted(Gender(gender), sort_by, discarded)
                 else:
-                    rabbits = repo.get_by_gender(Gender(gender))
+                    rabbits = repo.get_by_gender(Gender(gender), discarded)
                 
                 rabbits_data = []
                 for rabbit in rabbits:
@@ -202,9 +212,11 @@ class RabbitService:
         """
         try:
             with get_db_session() as db:
-                repo = RabbitRepository(Rabbit, db)
+                repo = RabbitRepository(Animal, db)
                 
-                if not repo.exists(rabbit_id):
+                # Check if rabbit exists and is of correct species
+                rabbit = repo.get_by_id(rabbit_id)
+                if not rabbit or rabbit.species != AnimalType.RABBIT:
                     return not_found_response("Rabbit")
                 
                 success = repo.discard_rabbit(rabbit_id, reason)
@@ -215,7 +227,7 @@ class RabbitService:
         except Exception as e:
             return error_response(str(e), 500)
     
-    def _serialize_rabbit(self, rabbit: Rabbit) -> Dict[str, Any]:
+    def _serialize_rabbit(self, rabbit: Animal) -> Dict[str, Any]:
         """
         Serialize rabbit model to dictionary
         
@@ -228,12 +240,14 @@ class RabbitService:
         return {
             'id': rabbit.id,
             'name': rabbit.name,
+            'species': rabbit.species.value if rabbit.species else None,
             'image': rabbit.image,
             'birth_date': rabbit.birth_date.isoformat() if rabbit.birth_date else None,
             'gender': rabbit.gender.value if rabbit.gender else None,
             'discarded': rabbit.discarded,
             'discarded_reason': rabbit.discarded_reason,
             'user_id': getattr(rabbit, 'user_id', None),
+            'corral_id': getattr(rabbit, 'corral_id', None),
             'created_at': rabbit.created_at.isoformat() if rabbit.created_at else None,
             'updated_at': rabbit.updated_at.isoformat() if rabbit.updated_at else None
         }
