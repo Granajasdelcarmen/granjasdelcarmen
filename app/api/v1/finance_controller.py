@@ -5,6 +5,7 @@ from flask_restx import Resource, fields
 from flask import request
 from app.services.product_sale_service import ProductSaleService
 from app.services.expense_service import ExpenseService
+from app.services.finance_service import FinanceService
 from app.api.v1 import finance_ns, api
 from app.utils.decorators import validate_auth_and_role, get_current_user_id
 from models import Role
@@ -12,6 +13,7 @@ from models import Role
 # Initialize services
 product_sale_service = ProductSaleService()
 expense_service = ExpenseService()
+finance_service = FinanceService()
 
 # API Models
 product_sale_model = api.model('ProductSale', {
@@ -62,6 +64,58 @@ expense_create_model = api.model('ExpenseCreate', {
 error_model = api.model('Error', {
     'error': fields.String(description='Error message')
 })
+
+# Total Sales Model (consolidated)
+total_sale_model = api.model('TotalSale', {
+    'id': fields.String(description='Sale ID'),
+    'sale_type': fields.String(description='Type of sale: "product" or "animal"'),
+    # Product sale fields
+    'product_type': fields.String(description='Product type (if sale_type is product)'),
+    'quantity': fields.Float(description='Quantity sold (if sale_type is product)'),
+    'unit_price': fields.Float(description='Unit price (if sale_type is product)'),
+    # Animal sale fields
+    'animal_id': fields.String(description='Animal ID (if sale_type is animal)'),
+    'animal_type': fields.String(description='Animal type (if sale_type is animal)'),
+    'animal_name': fields.String(description='Animal name (if sale_type is animal)'),
+    'price': fields.Float(description='Sale price (if sale_type is animal)'),
+    'weight': fields.Float(description='Weight (if sale_type is animal)'),
+    'height': fields.Float(description='Height (if sale_type is animal)'),
+    # Common fields
+    'total_price': fields.Float(description='Total price of sale'),
+    'sale_date': fields.String(description='Sale date'),
+    'customer_name': fields.String(description='Customer name (for products)'),
+    'notes': fields.String(description='Additional notes'),
+    'sold_by': fields.String(description='User ID who made the sale'),
+    'created_at': fields.String(description='Creation timestamp'),
+    'updated_at': fields.String(description='Last update timestamp')
+})
+
+# Total Sales Endpoints (consolidated)
+@finance_ns.route('/total-sales')
+class TotalSalesList(Resource):
+    @finance_ns.doc('list_total_sales')
+    @finance_ns.param('sort', 'Sort order by sale date: asc (ascending) or desc (descending)')
+    def get(self):
+        """Get list of all sales (products + animals) consolidated (admin only)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
+        sort_by = request.args.get('sort')
+        if sort_by and sort_by not in ['asc', 'desc']:
+            return {'error': 'Sort parameter must be "asc" or "desc"'}, 400
+        
+        response_data, status_code = finance_service.get_total_sales(sort_by)
+        
+        # Extract data from response if it's wrapped in success_response format
+        if isinstance(response_data, dict) and 'data' in response_data:
+            return response_data['data'], status_code
+        
+        # If it's an error response, return it as is
+        if isinstance(response_data, dict) and 'error' in response_data:
+            return response_data, status_code
+        
+        return response_data, status_code
 
 # Product Sales Endpoints
 @finance_ns.route('/product-sales')

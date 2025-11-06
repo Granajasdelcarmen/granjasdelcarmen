@@ -4,6 +4,7 @@ Handles sales for all animal types
 """
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc
 from app.repositories.base import BaseRepository
 from models import AnimalSale, AnimalType
 
@@ -51,4 +52,23 @@ class AnimalSaleRepository(BaseRepository[AnimalSale]):
             List of sale instances
         """
         return self.db.query(AnimalSale).filter(AnimalSale.sold_by == sold_by).all()
+    
+    def get_all_sorted(self, sort_by: Optional[str] = None) -> List[AnimalSale]:
+        """
+        Get all animal sales with optional sorting
+        
+        Args:
+            sort_by: Sort order ('asc' or 'desc' by created_at)
+            
+        Returns:
+            List of sale instances
+        """
+        query = self.db.query(AnimalSale)
+        
+        if sort_by == 'asc':
+            query = query.order_by(asc(AnimalSale.created_at))
+        elif sort_by == 'desc':
+            query = query.order_by(desc(AnimalSale.created_at))
+        
+        return query.all()
 
