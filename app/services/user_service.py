@@ -142,23 +142,28 @@ class UserService:
         
         Args:
             user_id: User ID
-            role: New role (admin, user, viewer)
+            role: New role (admin, user, viewer, trabajador)
             
         Returns:
             Tuple of (response_data, status_code)
         """
         try:
-            # Validate role
+            # Map role to enum value (Role enum values are lowercase: "admin", "user", etc.)
             role_mapping = {
-                'admin': 'ADMIN',
-                'user': 'USER',
-                'viewer': 'VIEWER',
-                'trabajador': 'TRABAJADOR'
+                'admin': 'admin',
+                'user': 'user',
+                'viewer': 'viewer',
+                'trabajador': 'trabajador'
             }
-            if role.lower() in role_mapping:
-                role = role_mapping[role.lower()]
-            else:
-                validate_enum_value(role, ['ADMIN', 'USER', 'VIEWER', 'TRABAJADOR'], 'role')
+            
+            # Normalize role to lowercase
+            role_lower = role.lower()
+            
+            if role_lower not in role_mapping:
+                return error_response(f"Invalid role: {role}. Valid roles are: admin, user, viewer, trabajador", 400)
+            
+            # Get the enum value (which is lowercase)
+            role_value = role_mapping[role_lower]
             
             with get_db_session() as db:
                 repo = UserRepository(User, db)
@@ -168,8 +173,8 @@ class UserService:
                 if not user:
                     return not_found_response("User")
                 
-                # Update role
-                user.role = Role(role)
+                # Update role using the enum value (lowercase)
+                user.role = Role(role_value)
                 db.commit()
                 db.refresh(user)
                 
@@ -192,18 +197,19 @@ class UserService:
         try:
             # Validate required fields
             validate_required_fields(user_data, ['email'])
-            # Validate and convert role if provided
+            # Validate and convert role if provided (Role enum values are lowercase: "admin", "user", etc.)
             if 'role' in user_data:
                 role_mapping = {
-                    'admin': 'ADMIN',
-                    'user': 'USER', 
-                    'viewer': 'VIEWER',
-                    'trabajador': 'TRABAJADOR'
+                    'admin': 'admin',
+                    'user': 'user',
+                    'viewer': 'viewer',
+                    'trabajador': 'trabajador'
                 }
-                if user_data['role'] in role_mapping:
-                    user_data['role'] = role_mapping[user_data['role']]
+                role_lower = user_data['role'].lower()
+                if role_lower in role_mapping:
+                    user_data['role'] = Role(role_mapping[role_lower])  # Convert to Role enum
                 else:
-                    validate_enum_value(user_data['role'], ['ADMIN', 'USER', 'VIEWER', 'TRABAJADOR'], 'role')
+                    return error_response(f"Invalid role: {user_data['role']}. Valid roles are: admin, user, viewer, trabajador", 400)
             
             with get_db_session() as db:
                 repo = UserRepository(User, db)
@@ -238,18 +244,19 @@ class UserService:
             Tuple of (response_data, status_code)
         """
         try:
-            # Validate and convert role if provided
+            # Validate and convert role if provided (Role enum values are lowercase: "admin", "user", etc.)
             if 'role' in user_data:
                 role_mapping = {
-                    'admin': 'ADMIN',
-                    'user': 'USER', 
-                    'viewer': 'VIEWER',
-                    'trabajador': 'TRABAJADOR'
+                    'admin': 'admin',
+                    'user': 'user',
+                    'viewer': 'viewer',
+                    'trabajador': 'trabajador'
                 }
-                if user_data['role'] in role_mapping:
-                    user_data['role'] = role_mapping[user_data['role']]
+                role_lower = user_data['role'].lower()
+                if role_lower in role_mapping:
+                    user_data['role'] = Role(role_mapping[role_lower])  # Convert to Role enum
                 else:
-                    validate_enum_value(user_data['role'], ['ADMIN', 'USER', 'VIEWER', 'TRABAJADOR'], 'role')
+                    return error_response(f"Invalid role: {user_data['role']}. Valid roles are: admin, user, viewer, trabajador", 400)
             
             with get_db_session() as db:
                 repo = UserRepository(User, db)

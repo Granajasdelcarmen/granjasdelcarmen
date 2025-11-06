@@ -4,6 +4,8 @@ User API controller
 from flask_restx import Resource, fields
 from app.services.user_service import UserService
 from app.api.v1 import users_ns, api
+from app.utils.decorators import validate_auth_and_role
+from models import Role
 
 # Initialize service
 user_service = UserService()
@@ -41,14 +43,22 @@ error_model = api.model('Error', {
 class UserList(Resource):
     @users_ns.doc('list_users')
     def get(self):
-        """Get list of all users"""
+        """Get list of all users (admin only)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         response_data, status_code = user_service.get_all_users()
         return response_data, status_code
     
     @users_ns.doc('create_user')
     @users_ns.expect(user_create_model)
     def post(self):
-        """Create a new user"""
+        """Create a new user (admin only)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         from flask import request
         user_data = request.get_json() or {}
         response_data, status_code = user_service.create_user(user_data)
@@ -63,7 +73,11 @@ class UserDetail(Resource):
     @users_ns.marshal_with(error_model, code=404)
     @users_ns.marshal_with(error_model, code=500)
     def get(self, user_id):
-        """Get user by ID"""
+        """Get user by ID (admin only)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         response_data, status_code = user_service.get_user_by_id(user_id)
         return response_data, status_code
     
@@ -74,7 +88,11 @@ class UserDetail(Resource):
     @users_ns.marshal_with(error_model, code=404)
     @users_ns.marshal_with(error_model, code=500)
     def put(self, user_id):
-        """Update user by ID"""
+        """Update user by ID (admin only)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         from flask import request
         user_data = request.get_json() or {}
         response_data, status_code = user_service.update_user(user_id, user_data)
@@ -87,7 +105,11 @@ class UserDetail(Resource):
     @users_ns.marshal_with(error_model, code=404)
     @users_ns.marshal_with(error_model, code=500)
     def delete(self, user_id):
-        """Delete user by ID"""
+        """Delete user by ID (admin only)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         response_data, status_code = user_service.delete_user(user_id)
         return response_data, status_code
 
@@ -101,6 +123,10 @@ class UserRoleUpdate(Resource):
     @users_ns.marshal_with(error_model, code=500)
     def put(self, user_id):
         """Update user role (admin only)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         from flask import request
         data = request.get_json() or {}
         role = data.get('role')

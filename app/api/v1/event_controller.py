@@ -2,6 +2,8 @@ from flask_restx import Resource, fields
 from flask import request
 from app.api.v1 import api, events_ns
 from app.services.event_service import EventService
+from app.utils.decorators import validate_auth_and_role
+from models import Role
 
 
 event_service = EventService()
@@ -39,6 +41,11 @@ class EventList(Resource):
     @events_ns.doc('create_event')
     @events_ns.expect(event_create_model)
     def post(self):
+        """Create a new event (admin/user/trabajador only)"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
         payload = request.get_json() or {}
         data, status = event_service.create_event(payload)
         return data, status

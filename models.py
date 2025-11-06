@@ -228,3 +228,58 @@ class Corral(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
+# ---------- FINANCIAL MODULE ----------
+# Enums para módulo financiero
+class ProductType(enum.Enum):
+    MIEL = "miel"
+    HUEVOS = "huevos"
+    LECHE = "leche"
+    OTROS = "otros"
+
+class ExpenseCategory(enum.Enum):
+    ALIMENTACION = "alimentacion"
+    MEDICAMENTOS = "medicamentos"
+    MANTENIMIENTO = "mantenimiento"
+    PERSONAL = "personal"
+    SERVICIOS = "servicios"
+    EQUIPOS = "equipos"
+    OTROS = "otros"
+
+# Ventas de productos no-animales (miel, huevos, leche, etc.)
+class ProductSale(Base):
+    __tablename__ = "product_sales"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    product_type = Column(Enum(ProductType), nullable=False)
+    quantity = Column(Float, nullable=False)  # Cantidad vendida (kg, docenas, litros, etc.)
+    unit_price = Column(Float, nullable=False)  # Precio por unidad
+    total_price = Column(Float, nullable=False)  # quantity * unit_price (calculado automáticamente)
+    sale_date = Column(DateTime, nullable=False, default=datetime.utcnow)
+    customer_name = Column(String, nullable=True)  # Cliente (opcional)
+    notes = Column(Text, nullable=True)
+    sold_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relaciones
+    user = relationship("User", foreign_keys=[sold_by])
+
+# Gastos de la finca
+class Expense(Base):
+    __tablename__ = "expenses"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    category = Column(Enum(ExpenseCategory), nullable=False)
+    description = Column(Text, nullable=False)
+    amount = Column(Float, nullable=False)
+    expense_date = Column(DateTime, nullable=False, default=datetime.utcnow)
+    vendor = Column(String, nullable=True)  # Proveedor/Vendedor (opcional)
+    notes = Column(Text, nullable=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relaciones
+    user = relationship("User", foreign_keys=[created_by])
+

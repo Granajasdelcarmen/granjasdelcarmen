@@ -225,6 +225,81 @@ DDL_STATEMENTS = [
         END IF;
     END $$;
     """,
+    # Create producttype enum for financial module
+    """
+    DO $$ BEGIN
+        CREATE TYPE producttype AS ENUM ('miel', 'huevos', 'leche', 'otros');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    """,
+    # Create expensecategory enum for financial module
+    """
+    DO $$ BEGIN
+        CREATE TYPE expensecategory AS ENUM ('alimentacion', 'medicamentos', 'mantenimiento', 'personal', 'servicios', 'equipos', 'otros');
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    """,
+    # Create product_sales table
+    """
+    CREATE TABLE IF NOT EXISTS product_sales (
+        id VARCHAR PRIMARY KEY,
+        product_type producttype NOT NULL,
+        quantity FLOAT NOT NULL,
+        unit_price FLOAT NOT NULL,
+        total_price FLOAT NOT NULL,
+        sale_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        customer_name VARCHAR,
+        notes TEXT,
+        sold_by VARCHAR NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    # Add foreign key constraint for product_sales.sold_by
+    """
+    DO $$ BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE constraint_name = 'product_sales_sold_by_fkey' 
+            AND table_name = 'product_sales'
+        ) THEN
+            ALTER TABLE product_sales 
+            ADD CONSTRAINT product_sales_sold_by_fkey 
+            FOREIGN KEY (sold_by) REFERENCES users(id);
+        END IF;
+    END $$;
+    """,
+    # Create expenses table
+    """
+    CREATE TABLE IF NOT EXISTS expenses (
+        id VARCHAR PRIMARY KEY,
+        category expensecategory NOT NULL,
+        description TEXT NOT NULL,
+        amount FLOAT NOT NULL,
+        expense_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        vendor VARCHAR,
+        notes TEXT,
+        created_by VARCHAR NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """,
+    # Add foreign key constraint for expenses.created_by
+    """
+    DO $$ BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE constraint_name = 'expenses_created_by_fkey' 
+            AND table_name = 'expenses'
+        ) THEN
+            ALTER TABLE expenses 
+            ADD CONSTRAINT expenses_created_by_fkey 
+            FOREIGN KEY (created_by) REFERENCES users(id);
+        END IF;
+    END $$;
+    """,
 ]
 
 

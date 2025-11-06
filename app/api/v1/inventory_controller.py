@@ -5,6 +5,8 @@ from flask_restx import Resource, fields
 from flask import request
 from app.services.inventory_service import InventoryService
 from app.api.v1 import inventory_ns, api
+from app.utils.decorators import validate_auth_and_role
+from models import Role
 
 # Initialize service
 inventory_service = InventoryService()
@@ -55,7 +57,11 @@ class InventoryList(Resource):
     @inventory_ns.doc('create_inventory_item')
     @inventory_ns.expect(inventory_create_model)
     def post(self):
-        """Create a new inventory item"""
+        """Create a new inventory item (admin/user only)"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
         item_data = request.get_json() or {}
         response_data, status_code = inventory_service.create_item(item_data)
         return response_data, status_code
@@ -79,14 +85,22 @@ class InventoryDetail(Resource):
     @inventory_ns.doc('update_inventory_item')
     @inventory_ns.expect(inventory_update_model)
     def put(self, item_id):
-        """Update inventory item by ID"""
+        """Update inventory item by ID (admin/user only)"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
         item_data = request.get_json() or {}
         response_data, status_code = inventory_service.update_item(item_id, item_data)
         return response_data, status_code
     
     @inventory_ns.doc('delete_inventory_item')
     def delete(self, item_id):
-        """Delete inventory item by ID"""
+        """Delete inventory item by ID (admin only)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         response_data, status_code = inventory_service.delete_item(item_id)
         return response_data, status_code
 
@@ -122,7 +136,11 @@ class InventoryQuantity(Resource):
     @inventory_ns.doc('update_item_quantity')
     @inventory_ns.expect(quantity_update_model)
     def put(self, item_id):
-        """Update item quantity"""
+        """Update item quantity (admin/user only)"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
         data = request.get_json() or {}
         quantity = data.get('quantity')
         response_data, status_code = inventory_service.update_quantity(item_id, quantity)
@@ -133,7 +151,11 @@ class InventoryAddQuantity(Resource):
     @inventory_ns.doc('add_item_quantity')
     @inventory_ns.expect(quantity_operation_model)
     def post(self, item_id):
-        """Add quantity to existing item"""
+        """Add quantity to existing item (admin/user only)"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
         data = request.get_json() or {}
         amount = data.get('amount')
         response_data, status_code = inventory_service.add_quantity(item_id, amount)
@@ -144,7 +166,11 @@ class InventorySubtractQuantity(Resource):
     @inventory_ns.doc('subtract_item_quantity')
     @inventory_ns.expect(quantity_operation_model)
     def post(self, item_id):
-        """Subtract quantity from existing item"""
+        """Subtract quantity from existing item (admin/user only)"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
         data = request.get_json() or {}
         amount = data.get('amount')
         response_data, status_code = inventory_service.subtract_quantity(item_id, amount)

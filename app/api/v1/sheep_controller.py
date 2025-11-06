@@ -6,7 +6,8 @@ from flask_restx import Resource, fields
 from flask import request
 from app.services.animal_service import AnimalService
 from app.api.v1 import sheep_ns, api
-from models import AnimalType
+from app.utils.decorators import validate_auth_and_role
+from models import AnimalType, Role
 
 # Initialize generic service
 animal_service = AnimalService()
@@ -90,6 +91,10 @@ class SheepAdd(Resource):
     @sheep_ns.expect(sheep_create_model)
     def post(self):
         """Add a new sheep"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
         sheep_data = request.get_json() or {}
         # Basic validation: birth_date required
         if not sheep_data.get('birth_date'):
@@ -109,6 +114,10 @@ class SheepDetail(Resource):
     @sheep_ns.expect(sheep_update_model)
     def put(self, sheep_id):
         """Update sheep by ID"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
         sheep_data = request.get_json() or {}
         response_data, status_code = animal_service.update_animal(SPECIES, sheep_id, sheep_data)
         return response_data, status_code
@@ -116,6 +125,10 @@ class SheepDetail(Resource):
     @sheep_ns.doc('delete_sheep')
     def delete(self, sheep_id):
         """Delete sheep by ID"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         response_data, status_code = animal_service.delete_animal(SPECIES, sheep_id)
         return response_data, status_code
 
@@ -125,6 +138,10 @@ class SheepDiscard(Resource):
     @sheep_ns.expect(sheep_discard_model)
     def post(self, sheep_id):
         """Discard a sheep (mark as discarded without sale)"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         data = request.get_json() or {}
         reason = data.get('reason')
         
@@ -140,6 +157,10 @@ class SheepSell(Resource):
     @sheep_ns.expect(sheep_sale_model)
     def post(self, sheep_id):
         """Sell a sheep - creates sale record and marks as discarded"""
+        user, error = validate_auth_and_role([Role.ADMIN])
+        if error:
+            return error[0], error[1]
+        
         sale_data = request.get_json() or {}
         
         # Validate required fields

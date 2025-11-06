@@ -2,6 +2,8 @@ from flask_restx import Resource
 from flask import request
 from app.api.v1 import api, alerts_ns
 from app.services.alert_service import AlertService
+from app.utils.decorators import validate_auth_and_role
+from models import Role
 
 
 alert_service = AlertService()
