@@ -101,5 +101,6 @@ class AuthMe(Resource):
         except Exception as e:
             # Fallback to session user if DB query fails
             import logging
-            logging.error(f"Error getting user from DB: {e}")
+            from app.utils.logger import Logger
+            Logger.error(f"Error getting user from DB: {e}", exc_info=e)
             return session_user

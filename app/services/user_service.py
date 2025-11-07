@@ -24,7 +24,8 @@ class UserService:
             Tuple of (response_data, status_code)
         """
         try:
-            print("get_all_users")
+            from app.utils.logger import Logger
+            Logger.debug("get_all_users")
             with get_db_session() as db:
                 repo = UserRepository(User, db)
                 users = repo.get_all()

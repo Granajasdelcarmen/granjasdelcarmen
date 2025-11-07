@@ -202,7 +202,8 @@ def validate_auth_and_role(allowed_roles: Optional[list] = None) -> tuple:
             user = user_data
         except Exception as e:
             import logging
-            logging.error(f"Error validating auth: {e}")
+            from app.utils.logger import Logger
+            Logger.error(f"Error validating auth: {e}", exc_info=e)
             return None, error_response("Authentication failed", 401)
     
     # If roles are specified, check role

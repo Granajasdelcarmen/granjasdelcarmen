@@ -33,12 +33,15 @@ def create_app(config_name='default'):
 
     # Initialize CORS con origen explícito del frontend y credenciales
     # Allow all methods including OPTIONS for preflight requests
+    frontend_url = app.config.get('FRONTEND_URL', 'http://localhost:3001')
+    print(f"🔧 CORS Config: Allowing origin: {frontend_url}")  # Debug log
+    
     CORS(
         app,
         supports_credentials=True,
         resources={
             r"/api/*": {
-                "origins": app.config['FRONTEND_URL'],
+                "origins": frontend_url,
                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
                 "allow_headers": ["Content-Type", "Authorization", "X-User-ID"],
                 "expose_headers": ["Content-Type"]

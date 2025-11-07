@@ -5,11 +5,14 @@ Uses generic AnimalService with AnimalType.RABBIT
 from flask_restx import Resource, fields
 from flask import request
 from app.services.animal_service import AnimalService
+from app.services.rabbit_litter_service import RabbitLitterService
 from app.api.v1 import rabbits_ns, api
-from models import AnimalType
+from app.utils.decorators import validate_auth_and_role
+from models import AnimalType, Role
 
-# Initialize generic service
+# Initialize services
 animal_service = AnimalService()
+litter_service = RabbitLitterService()
 SPECIES = AnimalType.RABBIT
 
 # API Models
@@ -31,7 +34,8 @@ rabbit_create_model = api.model('RabbitCreate', {
     'image': fields.String(description='Rabbit image URL'),
     'birth_date': fields.String(required=True, description='Rabbit birth date (YYYY-MM-DD format)'),
     'gender': fields.String(enum=['MALE', 'FEMALE'], description='Rabbit gender'),
-    'user_id': fields.String(description='Owner user ID')
+    'user_id': fields.String(description='Owner user ID'),
+    'is_breeder': fields.Boolean(description='Whether rabbit is a breeder (reproductor)')
 })
 
 rabbit_update_model = api.model('RabbitUpdate', {
@@ -39,7 +43,8 @@ rabbit_update_model = api.model('RabbitUpdate', {
     'image': fields.String(description='Rabbit image URL'),
     'birth_date': fields.String(description='Rabbit birth date (YYYY-MM-DD format)'),
     'gender': fields.String(enum=['MALE', 'FEMALE'], description='Rabbit gender'),
-    'user_id': fields.String(description='Owner user ID')
+    'user_id': fields.String(description='Owner user ID'),
+    'is_breeder': fields.Boolean(description='Whether rabbit is a breeder (reproductor)')
 })
 
 rabbit_discard_model = api.model('RabbitDiscard', {
@@ -171,6 +176,102 @@ class RabbitSell(Resource):
         sale_data['sold_by'] = user_id
         
         response_data, status_code = animal_service.sell_animal(SPECIES, rabbit_id, sale_data)
+        return response_data, status_code
+
+@rabbits_ns.route('/<string:rabbit_id>/slaughter')
+class RabbitSlaughter(Resource):
+    @rabbits_ns.doc('slaughter_rabbit')
+    def post(self, rabbit_id):
+        """Slaughter a rabbit and store in freezer (inventory) - Admin/User only"""
+        user, error = validate_auth_and_role([Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error[0], error[1]
+        
+        # Get user ID from authenticated user
+        user_id = user.get("sub") or user.get("id")
+        if not user_id:
+            return {'error': 'User ID not found'}, 401
+        
+        response_data, status_code = animal_service.slaughter_rabbit(rabbit_id, user_id)
+        return response_data, status_code
+
+@rabbits_ns.route('/litter')
+class RabbitLitter(Resource):
+    @rabbits_ns.doc('create_rabbit_litter')
+    @rabbits_ns.expect(api.model('RabbitLitterCreate', {
+        'mother_id': fields.String(required=True, description='ID of the mother rabbit'),
+        'father_id': fields.String(description='ID of the father rabbit (optional)'),
+        'birth_date': fields.String(required=True, description='Birth date for all rabbits (YYYY-MM-DD)'),
+        'count': fields.Integer(required=True, description='Number of LIVE rabbits to create (5-12 typical)'),
+        'genders': fields.List(fields.String(enum=['MALE', 'FEMALE']), description='List of genders for each live rabbit (optional)'),
+        'name_prefix': fields.String(description='Prefix for rabbit names (default: "Conejo")'),
+        'corral_id': fields.String(description='Corral ID for all rabbits'),
+        'dead_count': fields.Integer(description='Number of dead offspring (default: 0)'),
+        'dead_notes': fields.String(description='Notes about dead offspring'),
+        'dead_suspected_cause': fields.String(description='Suspected cause of death (e.g., "enfermedad", "déficit vitamínico", "alimento")')
+    }))
+    def post(self):
+        """Create a litter of rabbits (multiple rabbits at once) and optionally register dead offspring"""
+        from app.utils.decorators import validate_auth_and_role
+        
+        # Validate authentication
+        user, error = validate_auth_and_role(allowed_roles=[Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error
+        
+        # Get user ID from authenticated user
+        user_id = user.get("sub") or user.get("id")
+        if not user_id:
+            return {'error': 'User ID not found'}, 401
+        
+        litter_data = request.get_json() or {}
+        
+        # Set recorded_by if dead_count is provided
+        if litter_data.get('dead_count', 0) > 0:
+            litter_data['recorded_by'] = user_id
+        
+        response_data, status_code = litter_service.create_litter(litter_data)
+        return response_data, status_code
+
+@rabbits_ns.route('/dead-offspring')
+class RabbitDeadOffspring(Resource):
+    @rabbits_ns.doc('register_dead_offspring')
+    @rabbits_ns.expect(api.model('DeadOffspringCreate', {
+        'mother_id': fields.String(required=True, description='ID of the mother'),
+        'father_id': fields.String(description='ID of the father (optional)'),
+        'birth_date': fields.String(required=True, description='Date when they were born dead (YYYY-MM-DD)'),
+        'count': fields.Integer(required=True, description='Number of dead offspring'),
+        'notes': fields.String(description='Notes about possible causes'),
+        'suspected_cause': fields.String(description='Suspected cause (e.g., "enfermedad", "déficit vitamínico", "alimento")'),
+        'recorded_by': fields.String(required=True, description='User ID who recorded this')
+    }))
+    def post(self):
+        """Register dead offspring (rabbits born dead)"""
+        from app.utils.decorators import validate_auth_and_role
+        
+        # Validate authentication
+        user, error = validate_auth_and_role(allowed_roles=[Role.ADMIN, Role.USER, Role.TRABAJADOR])
+        if error:
+            return error
+        
+        dead_offspring_data = request.get_json() or {}
+        
+        # Get user ID from authenticated user
+        user_id = user.get("sub") or user.get("id")
+        if not user_id:
+            return {'error': 'User ID not found'}, 401
+        
+        dead_offspring_data['recorded_by'] = user_id
+        
+        response_data, status_code = litter_service.register_dead_offspring(dead_offspring_data)
+        return response_data, status_code
+
+@rabbits_ns.route('/dead-offspring/mother/<string:mother_id>')
+class RabbitDeadOffspringByMother(Resource):
+    @rabbits_ns.doc('get_dead_offspring_by_mother')
+    def get(self, mother_id):
+        """Get all dead offspring records for a specific mother"""
+        response_data, status_code = litter_service.get_dead_offspring_by_mother(mother_id)
         return response_data, status_code
 
 @rabbits_ns.route('/gender/<string:gender>')

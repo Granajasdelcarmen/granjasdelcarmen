@@ -22,7 +22,8 @@ class InventoryService:
             Tuple of (response_data, status_code)
         """
         try:
-            print("get_all_items")
+            from app.utils.logger import Logger
+            Logger.debug("get_all_items")
             with get_db_session() as db:
                 repo = InventoryRepository(Inventory, db)
                 items = repo.get_all()

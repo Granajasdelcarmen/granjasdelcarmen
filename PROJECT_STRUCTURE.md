@@ -34,7 +34,6 @@ granjasdelcarmen/
 ├── templates/                  # Plantillas HTML
 ├── models.py                   # Modelos de SQLAlchemy
 ├── server.py                   # Punto de entrada principal
-├── server_old.py              # Backup del server original
 ├── requirements.txt           # Dependencias
 └── PROJECT_STRUCTURE.md       # Este archivo
 ```

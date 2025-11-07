@@ -3,7 +3,7 @@ Generic Animal Repository - Unified repository for all animal types
 Uses the unified Animal model with species filtering
 """
 from typing import List, Optional, Literal
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, asc
 from app.repositories.base import BaseRepository
 from models import Animal, Gender, AnimalType
@@ -30,7 +30,7 @@ class AnimalRepository(BaseRepository[Animal]):
         discarded: Optional[bool] = False
     ) -> List[Animal]:
         """
-        Get all animals of a specific species
+        Get all animals of a specific species with eager loading of parent relationships
         
         Args:
             species: Animal species (RABBIT, COW, SHEEP, CHICKEN, etc.)
@@ -39,9 +39,16 @@ class AnimalRepository(BaseRepository[Animal]):
             discarded: Filter by discarded status (False = active, True = discarded, None = all)
             
         Returns:
-            List of animal instances
+            List of animal instances with parent relationships loaded
         """
-        query = self._filter_by_species(self.db.query(Animal), species)
+        query = self._filter_by_species(
+            self.db.query(Animal)
+            .options(
+                joinedload(Animal.mother),
+                joinedload(Animal.father)
+            ),
+            species
+        )
         
         # Filter by discarded status if specified
         if discarded is not None:
@@ -61,7 +68,7 @@ class AnimalRepository(BaseRepository[Animal]):
         discarded: Optional[bool] = False
     ) -> List[Animal]:
         """
-        Get all animals of a specific species sorted by birth date
+        Get all animals of a specific species sorted by birth date with eager loading of parent relationships
         
         Args:
             species: Animal species (RABBIT, COW, SHEEP, CHICKEN, etc.)
@@ -69,9 +76,16 @@ class AnimalRepository(BaseRepository[Animal]):
             discarded: Filter by discarded status (False = active, True = discarded, None = all)
             
         Returns:
-            List of animal instances sorted by birth date
+            List of animal instances sorted by birth date with parent relationships loaded
         """
-        query = self._filter_by_species(self.db.query(Animal), species)
+        query = self._filter_by_species(
+            self.db.query(Animal)
+            .options(
+                joinedload(Animal.mother),
+                joinedload(Animal.father)
+            ),
+            species
+        )
         
         # Filter by discarded status if specified
         if discarded is not None:
@@ -89,7 +103,7 @@ class AnimalRepository(BaseRepository[Animal]):
         discarded: Optional[bool] = False
     ) -> List[Animal]:
         """
-        Get animals by gender and species
+        Get animals by gender and species with eager loading of parent relationships
         
         Args:
             species: Animal species (RABBIT, COW, SHEEP, CHICKEN, etc.)
@@ -97,10 +111,15 @@ class AnimalRepository(BaseRepository[Animal]):
             discarded: Filter by discarded status (False = active, True = discarded, None = all)
             
         Returns:
-            List of animal instances with the specified gender and species
+            List of animal instances with the specified gender and species with parent relationships loaded
         """
         query = self._filter_by_species(
-            self.db.query(Animal).filter(Animal.gender == gender),
+            self.db.query(Animal)
+            .filter(Animal.gender == gender)
+            .options(
+                joinedload(Animal.mother),
+                joinedload(Animal.father)
+            ),
             species
         )
         
@@ -118,7 +137,7 @@ class AnimalRepository(BaseRepository[Animal]):
         discarded: Optional[bool] = False
     ) -> List[Animal]:
         """
-        Get animals by gender and species sorted by birth date
+        Get animals by gender and species sorted by birth date with eager loading of parent relationships
         
         Args:
             species: Animal species (RABBIT, COW, SHEEP, CHICKEN, etc.)
@@ -127,10 +146,15 @@ class AnimalRepository(BaseRepository[Animal]):
             discarded: Filter by discarded status (False = active, True = discarded, None = all)
             
         Returns:
-            List of animal instances with the specified gender and species sorted by birth date
+            List of animal instances with the specified gender and species sorted by birth date with parent relationships loaded
         """
         query = self._filter_by_species(
-            self.db.query(Animal).filter(Animal.gender == gender),
+            self.db.query(Animal)
+            .filter(Animal.gender == gender)
+            .options(
+                joinedload(Animal.mother),
+                joinedload(Animal.father)
+            ),
             species
         )
         
@@ -177,6 +201,25 @@ class AnimalRepository(BaseRepository[Animal]):
         """
         kwargs['species'] = species
         return super().create(**kwargs)
+    
+    def get_by_id(self, id: str, load_parents: bool = False) -> Optional[Animal]:
+        """
+        Get record by ID with optional eager loading of parent relationships
+        
+        Args:
+            id: Record ID
+            load_parents: Whether to eager load parent relationships (default: False)
+            
+        Returns:
+            Model instance or None if not found
+        """
+        query = self.db.query(Animal).filter(Animal.id == id)
+        if load_parents:
+            query = query.options(
+                joinedload(Animal.mother),
+                joinedload(Animal.father)
+            )
+        return query.first()
     
     def list_by_species(self, species: AnimalType) -> List[Animal]:
         """Legacy method - use get_all_by_species instead"""

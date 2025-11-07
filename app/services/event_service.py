@@ -8,6 +8,7 @@ from app.utils.validators import validate_required_fields
 from models import (
     Event,
     Alert,
+    Animal,
     AnimalType,
     Scope,
     RabbitEventType,
@@ -68,14 +69,54 @@ class EventService:
 
                 event = event_repo.create(**payload)
 
-                if species in ('COW', 'SHEEP'):
-                    ev = payload.get('cow_event') if species == 'COW' else payload.get('sheep_event')
-                    if str(ev) in ('CowEventType.DEWORMING', 'SheepEventType.DEWORMING') or ev in ('DEWORMING',):
+                # Manejar alertas automáticas según el tipo de evento
+                if species == 'COW':
+                    ev = payload.get('cow_event')
+                    animal_id = payload.get('animal_id')
+                    
+                    if ev and animal_id:
+                        from app.services.cow_alert_service import CowAlertService
+                        cow_alert_service = CowAlertService()
+                        
+                        # Si es evento de preñez, crear alertas de gestación
+                        if str(ev) in ('CowEventType.PREGNANCY', 'PREGNANCY'):
+                            cow_alert_service.create_pregnancy_alerts(animal_id, event_date)
+                        
+                        # Si es evento de desparasitación, crear alerta para próxima desparasitación (cada 3 meses)
+                        elif str(ev) in ('CowEventType.DEWORMING', 'DEWORMING'):
+                            cow_alert_service.create_periodic_deworming_alert(animal_id, event_date)
+                
+                elif species == 'RABBIT':
+                    ev = payload.get('rabbit_event')
+                    animal_id = payload.get('animal_id')
+                    
+                    if ev and animal_id:
+                        from app.services.rabbit_alert_service import RabbitAlertService
+                        rabbit_alert_service = RabbitAlertService()
+                        
+                        # Si es evento de preñez, crear alertas de gestación
+                        if str(ev) in ('RabbitEventType.PREGNANCY', 'PREGNANCY'):
+                            rabbit_alert_service.create_pregnancy_alerts(animal_id, event_date)
+                
+                elif species == 'SHEEP':
+                    # Mantener lógica antigua para ovejas (180 días)
+                    ev = payload.get('sheep_event')
+                    if str(ev) in ('SheepEventType.DEWORMING', 'DEWORMING') or ev in ('DEWORMING',):
                         init = event_date + timedelta(days=180 - 7)
                         maxd = event_date + timedelta(days=180 + 7)
+                        
+                        # Obtener nombre del animal si es individual
+                        animal_name = ""
+                        if payload.get('animal_id'):
+                            from app.repositories.animal_repository import AnimalRepository
+                            animal_repo = AnimalRepository(Animal, db)
+                            animal = animal_repo.get_by_id(payload.get('animal_id'))
+                            if animal:
+                                animal_name = f' "{animal.name}"'
+                        
                         alert_repo.create(
                             name='DEWORMING_REMINDER',
-                            description=f'Deworming due for {species.lower()}',
+                            description=f'Desparasitación pendiente para oveja{animal_name}',
                             init_date=init,
                             max_date=maxd,
                             status=AlertStatus.PENDING,
