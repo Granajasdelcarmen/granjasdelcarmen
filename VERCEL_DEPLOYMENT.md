@@ -109,9 +109,26 @@ vercel --prod
 ## 🔍 Verificar el Despliegue
 
 1. Ve a tu dashboard de Vercel
-2. Revisa los logs de la función en "Functions" → "Logs"
+2. **Revisa los logs de RUNTIME** (no solo los de build):
+   - Ve a tu proyecto en Vercel
+   - Click en "Functions" → Selecciona `api/index.py`
+   - Click en "Logs" para ver los logs de ejecución
+   - Estos logs mostrarán errores específicos de inicialización
 3. Prueba el endpoint de health: `https://tu-app.vercel.app/api/v1/health`
 4. Verifica que las rutas de la API respondan correctamente
+
+### **Cómo Revisar los Logs de Runtime:**
+
+Los logs de **build** (que viste) solo muestran si el build fue exitoso. Los logs de **runtime** muestran qué pasa cuando la función se ejecuta:
+
+1. En Vercel Dashboard → Tu Proyecto
+2. Click en "Functions" (en el menú lateral)
+3. Busca `api/index.py` en la lista
+4. Click en "View Function Logs" o "Logs"
+5. Ahí verás errores como:
+   - Errores de importación
+   - Errores de conexión a base de datos
+   - Errores de inicialización de la app
 
 ## 📝 Notas Importantes
 

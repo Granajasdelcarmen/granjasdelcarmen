@@ -13,10 +13,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Add the parent directory to the path so we can import the app
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 try:
-    # Add the parent directory to the path so we can import the app
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    
     from app import create_app
     
     # Create Flask app instance
@@ -25,23 +27,24 @@ try:
     app = create_app('production')
     logger.info("Flask app created successfully")
     
-    # Export the app for Vercel
-    # Vercel expects a handler function or WSGI app
-    handler = app
-    
 except Exception as e:
     logger.error(f"Failed to create Flask app: {e}", exc_info=True)
+    import traceback
+    logger.error(traceback.format_exc())
+    
     # Create a minimal error handler app
     from flask import Flask, jsonify
-    error_app = Flask(__name__)
+    app = Flask(__name__)
     
-    @error_app.route('/', defaults={'path': ''})
-    @error_app.route('/<path:path>')
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
     def error_handler(path):
         return jsonify({
             'error': 'Application initialization failed',
-            'message': str(e)
+            'message': str(e),
+            'type': type(e).__name__
         }), 500
-    
-    handler = error_app
+
+# Export the Flask app - Vercel will use it as WSGI application
+# The app object itself is the handler
 
