@@ -34,7 +34,8 @@ engine = create_engine(
         "application_name": "granjas-del-carmen-be",
         "options": "-c statement_timeout=30000",
         # Ensure SSL for managed Postgres providers like Supabase
-        "sslmode": "require",
+        # Only require SSL if DATABASE_URL contains 'sslmode' or is from a cloud provider
+        "sslmode": "prefer",  # Changed from "require" to "prefer" for compatibility
     }
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
