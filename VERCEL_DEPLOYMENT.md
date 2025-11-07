@@ -22,8 +22,10 @@ DATABASE_URL=postgresql://user:password@host:port/database
 APP_SECRET_KEY=tu-clave-secreta-super-segura-aqui
 FLASK_ENV=production
 
-# CORS Configuration
-FRONTEND_URL=https://tu-frontend.vercel.app
+# CORS Configuration (IMPORTANTE: debe coincidir con el dominio del frontend)
+FRONTEND_URL=https://admin.granjasdelcarmen.com
+# Si necesitas múltiples orígenes, sepáralos con comas:
+# FRONTEND_URL=https://admin.granjasdelcarmen.com,https://www.granjasdelcarmen.com
 
 # Auth0 (Opcional - solo si usas autenticación)
 AUTH0_DOMAIN=tu-dominio.auth0.com
