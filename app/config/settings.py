@@ -42,6 +42,11 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Production configuration"""
     DEBUG = False
+    # Session cookies for production (Vercel/serverless)
+    SESSION_COOKIE_SAMESITE = 'None'  # Required for cross-origin requests
+    SESSION_COOKIE_SECURE = True  # Required for HTTPS
+    SESSION_COOKIE_HTTPONLY = True
+    # Note: SQLite is not supported in production/Vercel. Use PostgreSQL.
 
 # Configuration mapping
 config = {

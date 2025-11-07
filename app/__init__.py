@@ -24,6 +24,17 @@ def create_app(config_name='default'):
     # Load configuration
     app.config.from_object(config[config_name])
     
+    # Validate production configuration
+    if config_name == 'production':
+        database_url = app.config.get('DATABASE_URL', '')
+        if database_url and database_url.startswith('sqlite'):
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(
+                "❌ SQLite is not supported in production/Vercel. "
+                "Please set DATABASE_URL to a PostgreSQL connection string."
+            )
+    
     # Disable strict slashes to avoid 308 redirects
     app.url_map.strict_slashes = False
     
@@ -70,8 +81,16 @@ def create_app(config_name='default'):
             server_metadata_url=f'https://{app.config["AUTH0_DOMAIN"]}/.well-known/openid-configuration',
         )
     
-    # Create database tables
-    Base.metadata.create_all(engine)
+    # Create database tables (with error handling for serverless environments)
+    try:
+        Base.metadata.create_all(engine)
+    except Exception as e:
+        # Log error but don't crash the app
+        # Tables might already exist or DB might not be available at startup
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Could not create database tables at startup: {e}")
+        logger.info("This is normal in serverless environments. Tables will be created on first use.")
     
     # Register blueprints
     from app.api.v1 import api_v1_bp

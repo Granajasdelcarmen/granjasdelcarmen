@@ -1,0 +1,141 @@
+# 🚀 Guía de Despliegue en Vercel
+
+Esta guía te ayudará a desplegar la aplicación Flask en Vercel.
+
+## 📋 Requisitos Previos
+
+1. Cuenta en Vercel
+2. Base de datos PostgreSQL (Vercel no soporta SQLite en producción)
+3. Variables de entorno configuradas
+
+## 🔧 Configuración de Variables de Entorno en Vercel
+
+Ve a tu proyecto en Vercel → Settings → Environment Variables y configura las siguientes variables:
+
+### **Variables Requeridas:**
+
+```env
+# Base de datos (REQUERIDO - debe ser PostgreSQL)
+DATABASE_URL=postgresql://user:password@host:port/database
+
+# Flask Configuration
+APP_SECRET_KEY=tu-clave-secreta-super-segura-aqui
+FLASK_ENV=production
+
+# CORS Configuration
+FRONTEND_URL=https://tu-frontend.vercel.app
+
+# Auth0 (Opcional - solo si usas autenticación)
+AUTH0_DOMAIN=tu-dominio.auth0.com
+AUTH0_CLIENT_ID=tu-client-id
+AUTH0_CLIENT_SECRET=tu-client-secret
+```
+
+### **Variables Opcionales:**
+
+```env
+DEBUG=False
+HOST=0.0.0.0
+PORT=3000
+```
+
+## 📁 Estructura de Archivos para Vercel
+
+La aplicación ya está configurada con:
+
+- ✅ `vercel.json` - Configuración de Vercel
+- ✅ `api/index.py` - Punto de entrada para funciones serverless
+- ✅ `requirements.txt` - Dependencias de Python
+
+## 🚀 Pasos para Desplegar
+
+### **Opción 1: Desde GitHub (Recomendado)**
+
+1. Conecta tu repositorio a Vercel
+2. Vercel detectará automáticamente la configuración
+3. Asegúrate de configurar las variables de entorno antes del despliegue
+4. Haz clic en "Deploy"
+
+### **Opción 2: Desde CLI**
+
+```bash
+# Instalar Vercel CLI
+npm i -g vercel
+
+# Iniciar sesión
+vercel login
+
+# Desplegar
+vercel
+
+# Para producción
+vercel --prod
+```
+
+## ⚠️ Problemas Comunes y Soluciones
+
+### **Error: "Python process exited with exit status: 1"**
+
+**Causas posibles:**
+1. **Base de datos no configurada**: Asegúrate de que `DATABASE_URL` esté configurada y sea una URL de PostgreSQL válida
+2. **Variables de entorno faltantes**: Verifica que todas las variables requeridas estén configuradas
+3. **Dependencias faltantes**: Verifica que `requirements.txt` tenga todas las dependencias
+
+**Solución:**
+- Revisa los logs en Vercel Dashboard → Functions → Logs
+- Verifica que `DATABASE_URL` apunte a una base de datos PostgreSQL accesible
+- Asegúrate de que la base de datos tenga las tablas creadas (usa Alembic migrations)
+
+### **Error: "FUNCTION_INVOCATION_FAILED"**
+
+**Causas posibles:**
+1. Error en la inicialización de la aplicación
+2. Problema de conexión a la base de datos
+3. Importación de módulos fallida
+
+**Solución:**
+- Revisa los logs detallados en Vercel
+- Verifica que `api/index.py` esté correctamente configurado
+- Asegúrate de que todas las rutas de importación sean correctas
+
+### **Error de Conexión a Base de Datos**
+
+**Solución:**
+- Verifica que `DATABASE_URL` sea correcta
+- Asegúrate de que la base de datos PostgreSQL esté accesible desde internet
+- Verifica que el firewall permita conexiones desde Vercel
+- Si usas un servicio como Supabase o Neon, verifica la configuración de SSL
+
+## 🔍 Verificar el Despliegue
+
+1. Ve a tu dashboard de Vercel
+2. Revisa los logs de la función en "Functions" → "Logs"
+3. Prueba el endpoint de health: `https://tu-app.vercel.app/api/v1/health`
+4. Verifica que las rutas de la API respondan correctamente
+
+## 📝 Notas Importantes
+
+1. **SQLite no funciona en Vercel**: Debes usar PostgreSQL o similar
+2. **Cold starts**: La primera solicitud puede tardar más (cold start)
+3. **Timeouts**: Las funciones serverless tienen límites de tiempo (10s en plan gratuito)
+4. **Base de datos**: Asegúrate de ejecutar las migraciones de Alembic antes del despliegue
+
+## 🛠️ Migraciones de Base de Datos
+
+Antes de desplegar, ejecuta las migraciones:
+
+```bash
+# Localmente, apuntando a la base de datos de producción
+export DATABASE_URL=postgresql://...
+python -m alembic upgrade head
+```
+
+O crea un script de migración que se ejecute automáticamente en el despliegue.
+
+## 📞 Soporte
+
+Si tienes problemas:
+1. Revisa los logs en Vercel Dashboard
+2. Verifica las variables de entorno
+3. Prueba localmente con las mismas variables de entorno
+
