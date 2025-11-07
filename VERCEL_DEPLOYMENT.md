@@ -16,7 +16,12 @@ Ve a tu proyecto en Vercel → Settings → Environment Variables y configura la
 
 ```env
 # Base de datos (REQUERIDO - debe ser PostgreSQL)
+# Formato básico:
 DATABASE_URL=postgresql://user:password@host:port/database
+# Con SSL (recomendado para producción):
+DATABASE_URL=postgresql://user:password@host:port/database?sslmode=require
+# O para servicios como Supabase/Neon:
+DATABASE_URL=postgresql://user:password@host:port/database?sslmode=prefer
 
 # Flask Configuration
 APP_SECRET_KEY=tu-clave-secreta-super-segura-aqui
@@ -107,6 +112,22 @@ vercel --prod
 - Asegúrate de que la base de datos PostgreSQL esté accesible desde internet
 - Verifica que el firewall permita conexiones desde Vercel
 - Si usas un servicio como Supabase o Neon, verifica la configuración de SSL
+
+### **Error: "invalid connection option 'check_same_thread'"**
+
+Este error indica que se está intentando usar configuración de SQLite en PostgreSQL.
+
+**Causas:**
+- La variable `DATABASE_URL` no está configurada en Vercel
+- La URL no tiene el formato correcto de PostgreSQL
+- La detección automática del tipo de base de datos falló
+
+**Solución:**
+1. Verifica que `DATABASE_URL` esté configurada en Vercel
+2. Asegúrate de que la URL comience con `postgresql://` o `postgres://`
+3. Formato correcto: `postgresql://user:password@host:port/database`
+4. Si necesitas SSL: `postgresql://user:password@host:port/database?sslmode=require`
+5. Revisa los logs de Vercel para ver qué tipo de base de datos se detectó
 
 ## 🔍 Verificar el Despliegue
 

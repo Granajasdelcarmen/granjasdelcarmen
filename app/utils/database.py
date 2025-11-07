@@ -22,25 +22,35 @@ DEFAULT_RETRY_DELAY = 1
 # Determine database type from URL
 def is_postgresql(url: str) -> bool:
     """Check if database URL is PostgreSQL"""
-    return url.startswith('postgresql://') or url.startswith('postgres://')
+    if not url:
+        return False
+    url_lower = url.lower()
+    return url_lower.startswith('postgresql://') or url_lower.startswith('postgres://') or 'postgresql' in url_lower
+
+# Get database URL from config
+database_url = Config.DATABASE_URL
 
 # Build connection args based on database type
-connect_args = {}
-if is_postgresql(Config.DATABASE_URL):
+# Log database URL type for debugging (without exposing credentials)
+logger.info(f"Database URL type detected: {'PostgreSQL' if is_postgresql(database_url) else 'SQLite'}")
+
+if is_postgresql(database_url):
     # PostgreSQL-specific connection arguments
+    # Note: sslmode should be in the connection URL, not in connect_args
+    # For psycopg2, SSL is handled via the connection string or connect_args with 'sslmode' key
+    # But psycopg2 uses different parameter names - use 'sslmode' in URL or handle via connect_args properly
     connect_args = {
         "connect_timeout": 5,
         "application_name": "granjas-del-carmen-be",
         "options": "-c statement_timeout=30000",
-        "sslmode": "prefer",  # Changed from "require" to "prefer" for compatibility
     }
-# SQLite doesn't need special connection args
-
-# Create database engine with optimized connection pooling
-# For SQLite, use different pool settings
-if is_postgresql(Config.DATABASE_URL):
+    
+    # If sslmode is needed, it should be in the DATABASE_URL itself
+    # Format: postgresql://user:pass@host:port/db?sslmode=require
+    
+    # Create PostgreSQL engine with optimized connection pooling
     engine = create_engine(
-        Config.DATABASE_URL,
+        database_url,
         pool_size=DEFAULT_POOL_SIZE,
         max_overflow=DEFAULT_MAX_OVERFLOW,
         pool_pre_ping=True,
@@ -50,14 +60,19 @@ if is_postgresql(Config.DATABASE_URL):
         echo=False,
         connect_args=connect_args
     )
+    logger.info("PostgreSQL engine created successfully")
 else:
-    # SQLite configuration (for local development)
+    # SQLite configuration (for local development only)
+    # SQLite-specific connection args
+    sqlite_connect_args = {"check_same_thread": False}
     engine = create_engine(
-        Config.DATABASE_URL,
+        database_url,
         pool_pre_ping=True,
         echo=False,
-        connect_args={"check_same_thread": False}  # SQLite-specific
+        connect_args=sqlite_connect_args
     )
+    logger.info("SQLite engine created successfully")
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @contextmanager
